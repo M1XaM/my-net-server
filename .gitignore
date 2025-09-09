@@ -1,0 +1,83 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+.env/
+*.env
+
+# Flask instance folder (for runtime data, uploads, configs)
+instance/
+
+# SQLite database (if used locally)
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE/project settings
+.vscode/
+.idea/
+*.iml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage/test reports
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+test_results/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter notebooks checkpoints (if using notebooks)
+.ipynb_checkpoints
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Mypy / Pyre / Pytype
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Local secrets (optional, keep config in .env)
+*.secret
+secrets.json

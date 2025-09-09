@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chat_user
+      POSTGRES_PASSWORD: chat_password
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: db
+      DB_NAME: chatdb
+      DB_USER: chat_user
+      DB_PASSWORD: chat_password
+    depends_on:
+      - db
+
+  frontend:
+    build: ../my-net-client
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
