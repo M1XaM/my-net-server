@@ -17,6 +17,7 @@ services:
       DB_NAME: chatdb
       DB_USER: chat_user
       DB_PASSWORD: chat_password
+      APP_ENCRYPTION_KEY: "33B2Akj9EVW-C4_9Ut9uHTsi-iA8Tr3H5sE3lEkapmw="
     depends_on:
       - db
 
