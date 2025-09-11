@@ -1,4 +1,5 @@
 import time, os
+import hashlib
 from app import db
 from sqlalchemy.exc import OperationalError
 from cryptography.fernet import Fernet
@@ -38,3 +39,9 @@ def decrypt(value: str) -> str:
     if value is None:
         return None
     return fernet.decrypt(value.encode()).decode()
+
+def hash_username(value: str) -> str:
+    """Create a SHA-256 hash of the username for searchable reference."""
+    if value is None:
+        return None
+    return hashlib.sha256(value.encode()).hexdigest()

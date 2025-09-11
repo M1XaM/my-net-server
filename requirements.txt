@@ -6,3 +6,4 @@ SQLAlchemy==2.0.22
 Flask-SocketIO==5.5.1
 eventlet==0.33.3
 cryptography==45.0.7
+Werkzeug==2.3.7

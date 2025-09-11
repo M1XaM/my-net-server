@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
+from app.utils import hash_username
 from app.models import User
 from sqlalchemy.exc import IntegrityError
 
@@ -9,27 +10,47 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     data = request.get_json()
     username = data.get('username')
+    password = data.get('password')
+    
     if not username:
         return jsonify({'error': 'Username required'}), 400
+    if not password:
+        return jsonify({'error': 'Password required'}), 400
 
-    new_user = User(username=username)
+    # Create new user
+    new_user = User()
+    new_user.username = username  # This will encrypt and hash the username
+    new_user.set_password(password)  # Hash the password
+    
     try:
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({'id': new_user.id, 'username': new_user.username}), 201
+        return jsonify({
+            'id': new_user.id,
+            'username': username
+        }), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify({'error': 'Username exists'}), 400
+        return jsonify({'error': 'Username already exists'}), 400
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
+    password = data.get('password')
+    
     if not username:
         return jsonify({'error': 'Username required'}), 400
+    if not password:
+        return jsonify({'error': 'Password required'}), 400
 
-    user = User.query.filter_by(username=username).first()
-    if user:
-        return jsonify({'id': user.id, 'username': user.username}), 200
+    # Find user by hashed username
+    user = User.query.filter_by(username_hash=hash_username(username)).first()
+    
+    if user and user.check_password(password):
+        return jsonify({
+            'id': user.id,
+            'username': user.username  # This will decrypt automatically
+        }), 200
     else:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': 'Invalid username or password'}), 401

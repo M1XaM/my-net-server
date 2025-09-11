@@ -1,10 +1,13 @@
 from app import db
-from app.utils import encrypt, decrypt
+from app.utils import encrypt, decrypt, hash_username
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     _username = db.Column("username", db.Text, unique=True, nullable=False)
+    username_hash = db.Column(db.String(64), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     @property
@@ -13,7 +16,15 @@ class User(db.Model):
 
     @username.setter
     def username(self, value):
+        
         self._username = encrypt(value)
+        self.username_hash = hash_username(value)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class Message(db.Model):
     __tablename__ = 'messages'
