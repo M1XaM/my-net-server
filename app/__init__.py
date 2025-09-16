@@ -15,13 +15,12 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
-    
-    # Register blueprints
+    socketio.init_app(app, cors_allowed_origins="*", path="/api/socket.io")
+
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.messages import messages_bp
-    
+
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(messages_bp, url_prefix='/api')
