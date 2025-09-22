@@ -78,6 +78,7 @@ dmypy.json
 .pyre/
 .pytype/
 
+.env*
 # Local secrets (optional, keep config in .env)
 *.secret
 secrets.json
