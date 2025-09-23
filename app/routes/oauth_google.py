@@ -1,8 +1,8 @@
 import urllib.parse
 import secrets
 
-from state_storage import state_storage
-from config import settings
+from .state_storage import state_storage
+from .config import settings
 
 
 def generate_google_oauth_redirect_uri(): # here is all data for info \
