@@ -10,6 +10,7 @@ def init_db(app):
     while retries > 0:
         try:
             with app.app_context():
+                #pass
                 db.create_all()
             print("✅ Database initialized successfully!")
             break

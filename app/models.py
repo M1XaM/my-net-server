@@ -7,7 +7,9 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     _username = db.Column("username", db.Text, unique=True, nullable=False)
     username_hash = db.Column(db.String(64), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(128), nullable=True)
+    google_id = db.Column(db.String(255), unique=True, nullable=True)
+    email = db.Column(db.String(255), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     @property
