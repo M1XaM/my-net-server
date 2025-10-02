@@ -60,19 +60,7 @@ def handle_code():
                     options={"verify_signature": False},  # WARNING: only for testing
                 )
                 return {"user": user_data, "access_token": access_token}
-            # Fetch Google Drive files
-    #         async with session.get(
-    #             url="https://www.googleapis.com/drive/v3/files",
-    #             headers={"Authorization": f"Bearer {access_token}"},
-    #             ssl=False,
-    #         ) as response:
-    #             res = await response.json()
-    #             files = [item["name"] for item in res.get("files", [])]
-    #
-    #     return {"user": user_data, "files": files}
-    #
-    # result = asyncio.run(fetch_google_data())
-    # return jsonify(result)
+
     result = asyncio.run(fetch_google_data())
     print("Google fetch result:", result)  # DEBUG
 
@@ -91,7 +79,6 @@ def handle_code():
     if not user:
         user = User(
             username=name,
-            username_hash=None,  # if you hash usernames, handle here
             password_hash=None,  # Google login users have no password
             google_id=google_id,
             email=email
