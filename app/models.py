@@ -6,8 +6,8 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     _username = db.Column("username", db.Text, unique=True, nullable=False)
-    username_hash = db.Column(db.String(64), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=True)
+    username_hash = db.Column(db.String(256), unique=True, nullable=False)  # increased from 64
+    password_hash = db.Column(db.String(512), nullable=True)                 # increased from 128
     google_id = db.Column(db.String(255), unique=True, nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -18,7 +18,6 @@ class User(db.Model):
 
     @username.setter
     def username(self, value):
-        
         self._username = encrypt(value)
         self.username_hash = hash_username(value)
 
@@ -27,6 +26,7 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
 
 class Message(db.Model):
     __tablename__ = 'messages'
