@@ -1,4 +1,3 @@
-# import app
 from flask import current_app
 import urllib.parse
 import secrets

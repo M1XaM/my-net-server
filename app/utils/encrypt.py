@@ -1,12 +1,11 @@
-# import app
 from flask import current_app
 import hashlib
 from cryptography.fernet import Fernet
 
 def get_fernet():
-    APP_ENCRYPTION_KEY = current_app.config["APP_ENCRYPTION_KEY"]
-    if APP_ENCRYPTION_KEY:
-        fernet = Fernet(APP_ENCRYPTION_KEY)
+    DB_ENCRYPTION_KEY = current_app.config["DB_ENCRYPTION_KEY"]
+    if DB_ENCRYPTION_KEY:
+        fernet = Fernet(DB_ENCRYPTION_KEY)
     else:
         fernet = Fernet.generate_key()
     return fernet
