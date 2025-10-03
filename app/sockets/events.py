@@ -1,12 +1,11 @@
 from flask_socketio import join_room, emit
 from flask import request
-from app.models import Message
+from app.models.message import Message
 
 online_users = {}
 
 def register_socket_events(socketio):
-    
-    
+
     @socketio.on('connect')
     def handle_connect():
         print(f"Client connected: {request.sid}")

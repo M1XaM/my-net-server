@@ -2,28 +2,21 @@ from flask import Blueprint, request, redirect, jsonify
 import aiohttp
 import asyncio
 import jwt
-import logging
-from .state_storage import state_storage
-from .oauth_google import generate_google_oauth_redirect_uri
-from .config import settings
+from flask import current_app
+from app.utils.state_storage import state_storage
+from app.utils.oauth_google import generate_google_oauth_redirect_uri
+from app.models.user import User
+from app import db
 
+google_auth_bp = Blueprint("google_auth", __name__)
 
-router = Blueprint("auth2", __name__, url_prefix="/api/auth")
-
-
-@router.route("/google/url", methods=["GET"])
+@google_auth_bp.route("/google/url", methods=["GET"])
 def get_google_oauth_redirect_uri():
-    logging.info('first')
     uri = generate_google_oauth_redirect_uri()
-    logging.info('next')
-    logging.info(uri)
     return redirect(uri, code=302)
 
-
-@router.route("/google/callback", methods=["POST"])
+@google_auth_bp.route("/google/callback", methods=["POST"])
 def handle_code():
-    from app.models import User
-    from app import db
     data = request.get_json()
     code = data.get("code")
     state = data.get("state")
@@ -41,8 +34,8 @@ def handle_code():
             async with session.post(
                 url=google_token_url,
                 data={
-                    "client_id": settings.OAUTH_GOOGLE_CLIENT_ID,
-                    "client_secret": settings.OAUTH_GOOGLE_CLIENT_SECRET,
+                    "client_id": current_app.config['OAUTH_GOOGLE_CLIENT_ID'],
+                    "client_secret": current_app.config['OAUTH_GOOGLE_CLIENT_SECRET'],
                     "grant_type": "authorization_code",
                     "redirect_uri": "https://localhost/auth/google",
                     "code": code,

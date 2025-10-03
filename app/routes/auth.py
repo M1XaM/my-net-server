@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.utils import hash_username
-from app.models import User
+from app.utils.encrypt import hash_username
+from app.models.user import User
 from sqlalchemy.exc import IntegrityError
 
 auth_bp = Blueprint('auth', __name__)

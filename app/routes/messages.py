@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from app.models import Message
+from app.models.message import Message
 
 messages_bp = Blueprint('messages', __name__)
 
