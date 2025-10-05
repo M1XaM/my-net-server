@@ -16,3 +16,4 @@ class Config:
 
     OAUTH_GOOGLE_CLIENT_ID = os.getenv("OAUTH_GOOGLE_CLIENT_ID", "default_client_id")
     OAUTH_GOOGLE_CLIENT_SECRET = os.getenv("OAUTH_GOOGLE_CLIENT_SECRET", "default_secret")
+    SECRET_KEY = os.getenv("SECRET_KEY", '52')  # Must be a string
