@@ -7,6 +7,7 @@ from app.utils.state_storage import state_storage
 from app.utils.oauth_google import generate_google_oauth_redirect_uri
 from app.models.user import User
 from app import db
+from app.utils.jwt_utils import create_access_token, create_refresh_token
 
 google_auth_bp = Blueprint("google_auth", __name__)
 
@@ -79,11 +80,17 @@ def handle_code():
         db.session.add(user)
         db.session.commit()
 
-    return jsonify({
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    
+    response = jsonify({
         "user": {
             "id": user.id,
             "username": user.username,
             "email": user.email,
             "google_id": user.google_id,
+            "access_token": access_token,
         }
     })
+    response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
+    return response
