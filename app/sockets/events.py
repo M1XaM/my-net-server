@@ -1,5 +1,6 @@
-from flask_socketio import join_room, emit
 from flask import request
+from flask_socketio import join_room, emit
+
 from app.models.message import Message
 
 online_users = {}

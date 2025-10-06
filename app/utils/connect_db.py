@@ -1,6 +1,7 @@
 import time
-from app import db
 from sqlalchemy.exc import OperationalError
+
+from app import db
 
 def init_db(app):
     retries = 10

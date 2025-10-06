@@ -14,18 +14,16 @@ def generate_google_oauth_redirect_uri(): # here is all data for info
         "redirect_uri": "https://localhost/auth/google",  # eto mi pishem sami v cliente
         "response_type": "code",  # prosto tak delaiu
         "scope": " ".join([  # получить доступ к сервисам с правами-> области действия оаутх
-            "https://www.googleapis.com/auth/drive",
-            "https://www.googleapis.com/auth/calendar",
             "openid",  # esli delaem vhod cherez google() mojno drugie
             "profile",
             "email",
         ]),
         "access_type": "offline",  # refresh token to use disk of user ()
         "state": random_state,  # state is for security
+        "prompt": "select_account consent"
     }
     
     # delaet is dicta query
     query_string = urllib.parse.urlencode(query_params, quote_via=urllib.parse.quote)
     base_url = "https://accounts.google.com/o/oauth2/v2/auth"
-    print('dnsajdasd:', f"{base_url}?{query_string}")
     return f"{base_url}?{query_string}"

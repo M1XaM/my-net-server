@@ -1,6 +1,6 @@
 from flask import current_app
-import hashlib
 from cryptography.fernet import Fernet
+import hashlib
 
 def get_fernet():
     DB_ENCRYPTION_KEY = current_app.config["DB_ENCRYPTION_KEY"]

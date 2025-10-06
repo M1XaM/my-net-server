@@ -13,6 +13,7 @@ def create_app():
     app.config.from_object('app.utils.config.Config')
     
     db.init_app(app)
+    
     socketio.init_app(app, cors_allowed_origins="*", path="/api/socket.io")
 
     from app.routes.auth import auth_bp

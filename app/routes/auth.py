@@ -1,10 +1,15 @@
 from flask import Blueprint, request, jsonify
-from app import db
-from app.utils.encrypt import hash_username
-from app.models.user import User
 from sqlalchemy.exc import IntegrityError
-from app.utils.jwt_utils import create_access_token, create_refresh_token, decode_token
 import traceback
+
+from app import db
+from app.models.user import User
+from app.utils.encrypt import hash_username
+from app.utils.jwt_utils import (
+    create_access_token,
+    create_refresh_token,
+    decode_token
+)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,8 +29,6 @@ def register():
     new_user.username = username  # This will encrypt and hash the username
     new_user.set_password(password) # hash passwors
 
-
-    
     try:
         db.session.add(new_user)
         db.session.commit()

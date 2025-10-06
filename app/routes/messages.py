@@ -1,9 +1,9 @@
 from flask import Blueprint, jsonify
+
 from app.models.message import Message
 from app.utils.jwt_utils import jwt_required
 
 messages_bp = Blueprint('messages', __name__)
-
 
 @messages_bp.route('/messages/<int:user_id>/<int:other_id>', methods=['GET'])
 @jwt_required

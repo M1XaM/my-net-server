@@ -1,12 +1,12 @@
-from flask import Blueprint, request, redirect, jsonify
+from flask import request, redirect, jsonify, Blueprint, current_app
 import aiohttp
 import asyncio
 import jwt
-from flask import current_app
+
+from app import db
+from app.models.user import User
 from app.utils.state_storage import state_storage
 from app.utils.oauth_google import generate_google_oauth_redirect_uri
-from app.models.user import User
-from app import db
 from app.utils.jwt_utils import create_access_token, create_refresh_token
 
 google_auth_bp = Blueprint("google_auth", __name__)
