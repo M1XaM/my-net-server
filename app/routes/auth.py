@@ -5,6 +5,8 @@ from app.models.user import User
 from sqlalchemy.exc import IntegrityError
 from app.utils.jwt_utils import create_access_token, create_refresh_token, decode_token
 import traceback
+from app.utils.csrf_utils import generate_csrf_token, csrf_protect
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -31,10 +33,14 @@ def register():
         db.session.commit()
         access_token = create_access_token(new_user.id)  # JWT
         refresh_token = create_refresh_token(new_user.id)  # JWT refresh
+        csrf_token = generate_csrf_token()
+
         response = jsonify({
             'id': new_user.id,
             'username': username,
-            'access_token': access_token
+            'access_token': access_token,
+            'csrf_token': csrf_token
+
         })
         response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
         return response, 201
@@ -60,10 +66,14 @@ def login():
     if user and user.check_password(password):
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
+        csrf_token = generate_csrf_token()
+
         response = jsonify({
             'id': user.id,
             'username': user.username,
-            'access_token': access_token
+            'access_token': access_token,
+            'csrf_token': csrf_token
+
         })
         response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
         return response, 200
@@ -79,7 +89,9 @@ def refresh_token():
     user_id = payload['user_id']
     access_token = create_access_token(user_id)
     new_refresh_token = create_refresh_token(user_id)
-    response = jsonify({'access_token': access_token})
+    csrf_token = generate_csrf_token()
+    response = jsonify({'access_token': access_token, 'csrf_token': csrf_token})
+
     response.set_cookie('refresh_token', new_refresh_token, httponly=True, secure=True, samesite='Strict')
     return response
 
