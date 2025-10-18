@@ -2,6 +2,8 @@ from flask import request
 from flask_socketio import join_room, emit
 
 from app.models.message import Message
+from app.utils.sanitize import sanitize_message  # <-- Import sanitizer
+
 
 online_users = {}
 
@@ -27,6 +29,7 @@ def register_socket_events(socketio):
         sender_id = data.get('sender_id')
         receiver_id = data.get('receiver_id')
         content = data.get('content')
+        content = sanitize_message(content)
 
         if not sender_id or not receiver_id or not content:
             return
