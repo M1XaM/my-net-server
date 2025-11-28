@@ -11,3 +11,4 @@ aiohttp~=3.10.10
 PyJWT~=2.10.1
 python-dotenv==1.1.1
 bleach
+requests~=2.31.0
