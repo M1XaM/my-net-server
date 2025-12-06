@@ -12,6 +12,8 @@ class User(db.Model):
     google_id = db.Column(db.String(255), unique=True, nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    totp_secret = db.Column(db.String(32), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
 
     @property
     def username(self):

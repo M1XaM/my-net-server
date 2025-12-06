@@ -90,11 +90,13 @@ def create_app():
     from app.routes.users import users_bp
     from app.routes.messages import messages_bp
     from app.routes.google_auth import google_auth_bp
+    from app.routes.two_factor import two_factor_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(messages_bp, url_prefix='/api')
     app.register_blueprint(google_auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(two_factor_bp, url_prefix="/api")
 
     from app.sockets.events import register_socket_events
     register_socket_events(socketio)

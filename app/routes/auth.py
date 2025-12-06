@@ -52,36 +52,53 @@ def register():
         db.session.rollback()
         return jsonify({'error': 'Username already exists'}), 400
 
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+    totp_token = data.get('totp_token')  # NEW: optional 2FA code
+
     if not username:
         return jsonify({'error': 'Username required'}), 400
     if not password:
         return jsonify({'error': 'Password required'}), 400
 
-    # Find user by hashed username
+    # Find user
     user = User.query.filter_by(username_hash=hash_username(username)).first()
 
-    if user and user.check_password(password):
-        access_token = create_access_token(user.id)
-        refresh_token = create_refresh_token(user.id)
-        csrf_token = generate_csrf_token()
-
-        response = jsonify({
-            'id': user.id,
-            'username': user.username,
-            'access_token': access_token,
-            'csrf_token': csrf_token
-
-        })
-        response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
-        return response, 200
-    else:
+    if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid username or password'}), 401
+
+    # NEW: Check if 2FA is enabled
+    if user.totp_enabled:
+        if not totp_token:
+            # Tell frontend: "you need to provide 2FA code"
+            return jsonify({
+                'requires_2fa': True,
+                'message': 'Please provide 2FA code'
+            }), 200
+
+        # Verify the 2FA code
+        from app.utils.totp import verify_totp
+        if not verify_totp(user.totp_secret, totp_token):
+            return jsonify({'error': 'Invalid 2FA code'}), 401
+
+    # Normal login flow (create tokens, etc.)
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    csrf_token = generate_csrf_token()
+
+    response = jsonify({
+        'id': user.id,
+        'username': user.username,
+        'access_token': access_token,
+        'csrf_token': csrf_token,
+        'totp_enabled': user.totp_enabled
+    })
+    response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
+    return response, 200
 
 @auth_bp.route('/token/refresh', methods=['POST'])
 def refresh_token():

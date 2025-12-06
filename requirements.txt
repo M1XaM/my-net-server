@@ -12,3 +12,5 @@ PyJWT~=2.10.1
 python-dotenv==1.1.1
 bleach
 requests~=2.31.0
+pyotp==2.9.0
+qrcode==7.4.2
