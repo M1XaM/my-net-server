@@ -40,20 +40,22 @@ def register():
     new_user.is_email_verified = False
 
     try:
-        db.session.add(new_user)
-        db.session.commit()
-        
         # Generate verification token
         token = EmailVerification.generate_token()
+        
+        # Add user and verification in a single transaction
+        db.session.add(new_user)
+        db.session.flush()  # Get the user ID without committing
+        
         verification = EmailVerification(
             user_id=new_user.id,
             token=token,
             expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
         )
         db.session.add(verification)
-        db.session.commit()
+        db.session.commit()  # Commit both user and verification together
         
-        # Send verification email
+        # Send verification email (after successful commit)
         send_verification_email(email, username, token)
         
         return jsonify({
@@ -155,8 +157,7 @@ def verify_email():
     try:
         db.session.commit()
         return jsonify({
-            'message': 'Email verified successfully. You can now log in.',
-            'username': user.username
+            'message': 'Email verified successfully. You can now log in.'
         }), 200
     except Exception as e:
         db.session.rollback()

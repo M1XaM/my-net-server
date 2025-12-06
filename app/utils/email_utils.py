@@ -26,18 +26,18 @@ def send_email(to_email, subject, html_content, text_content=None):
         smtp_username = current_app.config.get('SMTP_USERNAME')
         smtp_password = current_app.config.get('SMTP_PASSWORD')
         from_email = current_app.config.get('SMTP_FROM_EMAIL')
-        from_name = current_app.config.get('SMTP_FROM_NAME')
+        from_name = current_app.config.get('SMTP_FROM_NAME', 'MyNet')
         
         # Check if SMTP is configured
-        if not smtp_username or not smtp_password:
-            logger.warning("SMTP credentials not configured. Email will not be sent.")
+        if not all([smtp_host, smtp_port, smtp_username, smtp_password, from_email]):
+            logger.warning("SMTP not fully configured. Email will not be sent.")
             logger.info(f"Would send email to {to_email} with subject: {subject}")
             return True  # Return True in development mode
         
         # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = f"{from_name} <{from_email}>"
+        msg['From'] = f"{from_name} <{from_email}>" if from_name else from_email
         msg['To'] = to_email
         
         # Add text and HTML parts
