@@ -20,6 +20,14 @@ class Config:
     OAUTH_GOOGLE_CLIENT_SECRET = os.getenv("OAUTH_GOOGLE_CLIENT_SECRET", "default_secret")
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "52")
+
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT = int(os. getenv("MAIL_PORT", 587))
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os. getenv("MAIL_PASSWORD", "")
+    MAIL_FROM_EMAIL = os.getenv("MAIL_FROM_EMAIL", "MyNet")
+    MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "MyNet")
+    
     @staticmethod
     def make_uri(host):
         return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{host}/{Config.DB_NAME}?sslmode=require"

@@ -1,7 +1,7 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db
-from app.utils.encrypt import encrypt, decrypt, hash_username
+from app.utils.encryption_utils import encrypt, decrypt, hash_username
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -12,6 +12,15 @@ class User(db.Model):
     google_id = db.Column(db.String(255), unique=True, nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    # Email verification fields
+    is_email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    verification_code = db.Column(db.String(6), nullable=True)
+    verification_code_expires_at = db.Column(db.DateTime, nullable=True)
+
+    # Two-Factor Authentication fields
+    totp_secret = db.Column(db.String(32), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
 
     @property
     def username(self):

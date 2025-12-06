@@ -1,5 +1,5 @@
 from app import db
-from app.utils.encrypt import encrypt, decrypt
+from app.utils.encryption_utils import encrypt, decrypt
 
 class Message(db.Model):
     __tablename__ = 'messages'

@@ -11,9 +11,9 @@ Backend service for MyNet technical communication platform. Built with Flask and
 Run the complete platform using the infrastructure repository:
 
 ```bash
-git clone https://github.com/your-org/mynet-infrastructure.git
-cd mynet-infrastructure
-docker-compose up -d
+git clone https://github.com/M1XaM/my-net-infra.git
+cd my-net-infra
+docker-compose up
 ```
 
 ## 🏗️ Architecture
@@ -28,11 +28,24 @@ docker-compose up -d
 - PostgreSQL
 - Docker
 
+## ✨ Features
+
+- **User Authentication** - Secure registration and login with JWT tokens
+- **Email Verification** - Token-based email verification for new users
+- **Google OAuth** - Sign in with Google integration
+- **Real-time Messaging** - WebSocket-based chat functionality
+- **End-to-End Encryption** - Encrypted storage for sensitive data
+
+## 📖 Documentation
+
+- [Email Verification Setup](docs/EMAIL_VERIFICATION.md) - Configuration and usage guide
+
+
 ## 📋 Status
 
 🚧 **Work in Progress** - Core functionality implemented and being tested.
 
 ## 🔗 Related Repos
 
-- [MyNet Client](https://github.com/your-org/mynet-client)
-- [MyNet Infrastructure](https://github.com/your-org/mynet-infrastructure)
+- [MyNet Client](https://github.com/M1XaM/my-net-client)
+- [MyNet Infrastructure](https://github.com/M1XaM/my-net-infra)

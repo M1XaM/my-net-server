@@ -1,0 +1,40 @@
+import threading
+from flask import Flask, g
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO
+
+from app.utils.db_utils import DbInitialization
+from app.utils import config
+
+db = SQLAlchemy()
+socketio = SocketIO()
+lock = threading.Lock()
+
+db_helper = DbInitialization(db, socketio, lock)
+
+def create_app():
+    app = Flask(__name__)
+    CORS(app)
+    app.config.from_object('app.utils.config.Config')
+
+    db_helper.setup_database_connection(app)
+
+    socketio.init_app(app, cors_allowed_origins="*", path="/api/socket.io")
+
+    from app.controllers.auth_controller import auth_bp
+    from app.controllers.user_controller import users_bp
+    from app.controllers.message_controller import messages_bp
+    from app.controllers.google_auth_controller import google_auth_bp
+    from app.controllers.two_factor_controller import two_factor_bp
+
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(users_bp, url_prefix='/api')
+    app.register_blueprint(messages_bp, url_prefix='/api')
+    app.register_blueprint(google_auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(two_factor_bp, url_prefix="/api")
+
+    from app.controllers.chat_controller import register_socket_events
+    register_socket_events(socketio)
+
+    return app

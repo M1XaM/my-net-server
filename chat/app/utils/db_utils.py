@@ -1,28 +1,90 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_socketio import SocketIO
 import time
 import threading
 from sqlalchemy import text, event
 from sqlalchemy import create_engine
-from sqlalchemy.exc import OperationalError, DBAPIError, DisconnectionError
+from sqlalchemy.exc import DisconnectionError
 from sqlalchemy.pool import Pool
-from app.utils import config
 
+from app.utils import config
 
 db_uris = [
     config.Config.make_uri(config.Config.DB_HOST),
     config.Config.make_uri(config.Config.DB_HOST_STANDBY),
 ]
 
-
-class Db_initialization():
-
-    def __init__(self, db, socketio, lock, db_uris):
+class DbInitialization():
+    def __init__(self, db, socketio, lock, db_uris=db_uris):
         self.db = db
         self.socketio = socketio
         self.lock = lock
         self.db_uris = db_uris
         self.current_db = None
+
+    def setup_database_connection(self, app):
+        """Complete database setup including connection and monitoring."""
+        # Set aggressive connection settings
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 5,
+            'max_overflow': 10,
+            'pool_timeout': 5,
+            'connect_args': {
+                'connect_timeout': 5,
+                'keepalives': 1,
+                'keepalives_idle': 5,
+                'keepalives_interval': 2,
+                'keepalives_count': 2,
+            }
+        }
+
+        # Wait for any available DB
+        available_db = self.wait_for_any_db(max_retries=30, retry_delay=2)
+
+        if not available_db:
+            raise RuntimeError("⛔ Neither MAIN nor STANDBY DB available after 60 seconds!")
+
+        app.config["SQLALCHEMY_DATABASE_URI"] = available_db
+        self.current_db = available_db
+
+        print(f"🎯 Initial DB set to: {self.current_db}")
+
+        if available_db == self.db_uris[0]:
+            print("✅ Connected to MAIN DB")
+        else:
+            print("✅ Connected to STANDBY DB")
+
+        # Initialize SQLAlchemy with the app
+        self.db.init_app(app)
+
+        # Setup connection error handling
+        self.handle_db_connection_errors()
+
+        # Create tables
+        self.create_tables_with_retries(app)
+
+        # Start monitoring thread
+        print("🚀 Starting DB monitor thread...")
+        threading.Thread(target=self.monitor_db, args=(app,), daemon=True).start()
+
+    def create_tables_with_retries(self, app, retries=5):
+        """Create database tables with retry logic."""
+        # Import models here to avoid circular imports
+        from app.models.user import User
+        from app.models.message import Message
+        
+        while retries > 0:
+            try:
+                with app.app_context():
+                    self.db.create_all()
+                    print("✅ Tables created successfully.")
+                break
+            except Exception as e:
+                retries -= 1
+                if retries == 0:
+                    raise RuntimeError(f"❌ Failed to create tables: {e}")
+                print(f"⏳ Failed to create tables, retrying... ({e})")
+                time.sleep(2)
 
     def check_db_available(self, uri, timeout=2):
         """Check if a DB is available."""
@@ -62,12 +124,8 @@ class Db_initialization():
             time.sleep(1)  # Check every second
 
             try:
-
                 # Check current DB health
-
                 current_alive = self.check_db_available(self.current_db, timeout=2)
-
-
 
                 if not current_alive:
                     # Current DB is down, switch to the other one

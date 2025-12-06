@@ -2,7 +2,7 @@ from flask import current_app
 import urllib.parse
 import secrets
 
-from .state_storage import state_storage
+state_storage = set()
 
 def generate_google_oauth_redirect_uri(): # here is all data for info
     # https://developers.google.com/identity/protocols/oauth2/web-server?hl=ru#python_1
