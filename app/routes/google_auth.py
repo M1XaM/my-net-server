@@ -71,14 +71,14 @@ def handle_code():
     # Lookup or create user
     user = User.query.filter_by(google_id=google_id).first()
     if not user:
-        from datetime import datetime
+        from datetime import datetime, timezone
         user = User(
             username=name,
             password_hash=None,  # Google login users have no password
             google_id=google_id,
             email=email,
             is_email_verified=True,  # Google users are pre-verified
-            email_verified_at=datetime.utcnow()
+            email_verified_at=datetime.now(timezone.utc)
         )
         db.session.add(user)
         db.session.commit()

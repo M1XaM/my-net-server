@@ -1,6 +1,6 @@
 from app import db
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class EmailVerification(db.Model):
     __tablename__ = 'email_verifications'
@@ -20,7 +20,10 @@ class EmailVerification(db.Model):
     
     def is_expired(self):
         """Check if the token has expired"""
-        return datetime.utcnow() > self.expires_at
+        now = datetime.now(timezone.utc)
+        # Handle both timezone-aware and naive datetimes for compatibility
+        expires = self.expires_at.replace(tzinfo=timezone.utc) if self.expires_at.tzinfo is None else self.expires_at
+        return now > expires
     
     def is_valid(self):
         """Check if the token is valid (not used and not expired)"""

@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.utils.csrf_utils import generate_csrf_token, csrf_protect
 
 
@@ -48,7 +48,7 @@ def register():
         verification = EmailVerification(
             user_id=new_user.id,
             token=token,
-            expires_at=datetime.utcnow() + timedelta(hours=24)
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
         )
         db.session.add(verification)
         db.session.commit()
@@ -149,7 +149,7 @@ def verify_email():
         return jsonify({'error': 'User not found'}), 404
     
     user.is_email_verified = True
-    user.email_verified_at = datetime.utcnow()
+    user.email_verified_at = datetime.now(timezone.utc)
     verification.is_used = True
     
     try:
@@ -193,7 +193,7 @@ def resend_verification():
     verification = EmailVerification(
         user_id=user.id,
         token=token,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
     db.session.add(verification)
     
