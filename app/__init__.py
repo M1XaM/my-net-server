@@ -65,6 +65,7 @@ def create_app():
     # Import models before creating tables
     from app.models.user import User
     from app.models.message import Message
+    from app.models.email_verification import EmailVerification
 
     retries = 5
     while retries > 0:
