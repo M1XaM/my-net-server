@@ -60,7 +60,7 @@ Creates a new user account and sends a verification email.
 - `400`: Username already exists / Email already exists
 
 ### 2. Verify Email
-**GET** `/api/auth/verify-email?token=<verification_token>`
+**GET** `/api/verify-email?token=<verification_token>`
 
 Verifies the user's email address using the token sent to their email.
 
@@ -82,7 +82,7 @@ Verifies the user's email address using the token sent to their email.
 - `404`: User not found
 
 ### 3. Resend Verification Email
-**POST** `/api/auth/resend-verification`
+**POST** `/api/resend-verification`
 
 Sends a new verification email to the user.
 
