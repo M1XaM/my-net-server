@@ -62,10 +62,9 @@ def create_app():
     # Setup connection error handling
     db_helper.handle_db_connection_errors()
 
-    # Import models before creating tables
-    from app.models.user import User
-    from app.models.message import Message
-    from app.models.email_verification import EmailVerification
+    # ✅ Import ONLY User and Message models
+    from app. models. user import User
+    from app. models.message import Message
 
     retries = 5
     while retries > 0:
@@ -78,7 +77,7 @@ def create_app():
             retries -= 1
             if retries == 0:
                 raise RuntimeError(f"❌ Failed to create tables: {e}")
-            print(f"⏳ Failed to create tables, retrying... ({e})")
+            print(f"⏳ Failed to create tables, retrying...  ({e})")
             time.sleep(2)
 
     # Start monitoring thread
@@ -96,7 +95,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(messages_bp, url_prefix='/api')
-    app.register_blueprint(google_auth_bp, url_prefix="/api/auth")
+    app. register_blueprint(google_auth_bp, url_prefix="/api/auth")
     app.register_blueprint(two_factor_bp, url_prefix="/api")
 
     from app.sockets.events import register_socket_events

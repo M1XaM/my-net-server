@@ -1,21 +1,35 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
 import traceback
+import random
+import string
+import re
 from datetime import datetime, timedelta, timezone
 from app.utils.csrf_utils import generate_csrf_token, csrf_protect
 
-
 from app import db
 from app.models.user import User
+from app.utils.email_service import send_verification_email
 from app.utils.encrypt import hash_username
 from app.utils.jwt_utils import (
     create_access_token,
     create_refresh_token,
     decode_token
 )
-from app.utils.email_utils import send_verification_email
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def is_valid_email(email):
+    """Validate email format"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
+def generate_verification_code():
+    """Generate a 6-digit random verification code"""
+    return ''.join(random.choices(string.digits, k=6))
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -23,7 +37,8 @@ def register():
     username = data.get('username')
     password = data.get('password')
     email = data.get('email')
-    
+
+    # ✅ Validate required fields
     if not username:
         return jsonify({'error': 'Username required'}), 400
     if not password:
@@ -31,36 +46,42 @@ def register():
     if not email:
         return jsonify({'error': 'Email required'}), 400
 
-    # Create new user (unverified)
+    # ✅ Validate email format
+    if not is_valid_email(email):
+        return jsonify({'error': 'Invalid email format'}), 400
+
+    # ✅ Check if email already exists
+    existing_email = User.query.filter_by(email=email).first()
+    if existing_email:
+        return jsonify({'error': 'Email already registered'}), 400
+
+    # ✅ Create new user
     new_user = User()
-    new_user.username = username  # This will encrypt and hash the username
-    new_user.set_password(password) # hash password
+    new_user.username = username
+    new_user.set_password(password)
     new_user.email = email
     new_user.is_email_verified = False
 
+    # ✅ Generate 6-digit verification code
+    verification_code = generate_verification_code()
+    new_user.verification_code = verification_code
+    new_user.verification_code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
     try:
-        # Generate verification token
-        token = EmailVerification.generate_token()
-        
-        # Add user and verification in a single transaction
         db.session.add(new_user)
-        db.session.flush()  # Get the user ID without committing
-        
-        verification = EmailVerification(
-            user_id=new_user.id,
-            token=token,
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
-        )
-        db.session.add(verification)
-        db.session.commit()  # Commit both user and verification together
-        
-        # Send verification email (after successful commit)
-        send_verification_email(email, username, token)
-        
+        db.session.commit()
+
+        send_verification_email(email, verification_code, username)
+        print(f"📧 Verification code for {email}: {verification_code}")
+
+        # ✅ Return pending verification status
         return jsonify({
-            'message': 'Registration successful. Please check your email to verify your account.',
-            'email': email
+            'status': 'pending_verification',
+            'user_id': new_user.id,
+            'email': email,
+            'message': 'Verification code sent to your email.   Please verify to complete registration.'
         }), 201
+
     except IntegrityError as e:
         traceback.print_exc()
         db.session.rollback()
@@ -70,29 +91,44 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
 
 
-@auth_bp.route('/login', methods=['POST'])
-def login():
+@auth_bp.route('/verify-email', methods=['POST'])
+def verify_email():
+    """✅ Verify email with 6-digit code"""
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    totp_token = data.get('totp_token')  # NEW: optional 2FA code
+    user_id = data.get('user_id')
+    verification_code = data.get('verification_code')
 
-    if not username:
-        return jsonify({'error': 'Username required'}), 400
-    if not password:
-        return jsonify({'error': 'Password required'}), 400
+    if not user_id:
+        return jsonify({'error': 'User ID required'}), 400
+    if not verification_code:
+        return jsonify({'error': 'Verification code required'}), 400
 
-    # Find user
-    user = User.query.filter_by(username_hash=hash_username(username)).first()
+    user = User.query.get(user_id)
 
-<<<<<<< HEAD
-    if not user or not user.check_password(password):
-=======
-    if user and user.check_password(password):
-        # Check if email is verified
-        if not user.is_email_verified:
-            return jsonify({'error': 'Please verify your email before logging in'}), 403
-        
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    # ✅ Check if already verified
+    if user.is_email_verified:
+        return jsonify({'error': 'Email already verified'}), 400
+
+    # ✅ Check if code matches
+    if user.verification_code != verification_code:
+        return jsonify({'error': 'Invalid verification code'}), 400
+
+    # ✅ Check if code expired
+    if datetime.now(timezone.utc) > user.verification_code_expires_at:
+        return jsonify({'error': 'Verification code expired'}), 400
+
+    # ✅ Mark as verified and clear code
+    user.is_email_verified = True
+    user.verification_code = None
+    user.verification_code_expires_at = None
+
+    try:
+        db.session.commit()
+
+        # ✅ Generate tokens for auto-login
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
         csrf_token = generate_csrf_token()
@@ -100,31 +136,55 @@ def login():
         response = jsonify({
             'id': user.id,
             'username': user.username,
+            'email': user.email,
             'access_token': access_token,
-            'csrf_token': csrf_token
-
+            'csrf_token': csrf_token,
+            'message': 'Email verified successfully!'
         })
         response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
         return response, 200
-    else:
->>>>>>> bf27e2a2e93d19963b20733be0d4a6d87509a0a6
+
+    except Exception as e:
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'error': 'Error verifying email'}), 500
+
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    totp_token = data.get('totp_token')
+
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+    if not password:
+        return jsonify({'error': 'Password required'}), 400
+
+    # ✅ Find user by hashed username
+    user = User.query.filter_by(username_hash=hash_username(username)).first()
+
+    if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid username or password'}), 401
 
-    # NEW: Check if 2FA is enabled
+    # ✅ CHECK: Email must be verified
+    if not user.is_email_verified:
+        return jsonify({'error': 'Please verify your email before logging in'}), 403
+
+    # ✅ Check if 2FA is enabled
     if user.totp_enabled:
         if not totp_token:
-            # Tell frontend: "you need to provide 2FA code"
             return jsonify({
                 'requires_2fa': True,
                 'message': 'Please provide 2FA code'
             }), 200
 
-        # Verify the 2FA code
         from app.utils.totp import verify_totp
         if not verify_totp(user.totp_secret, totp_token):
             return jsonify({'error': 'Invalid 2FA code'}), 401
 
-    # Normal login flow (create tokens, etc.)
+    # ✅ Normal login flow
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
     csrf_token = generate_csrf_token()
@@ -138,6 +198,7 @@ def login():
     })
     response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
     return response, 200
+
 
 @auth_bp.route('/token/refresh', methods=['POST'])
 def refresh_token():
@@ -154,92 +215,9 @@ def refresh_token():
     response.set_cookie('refresh_token', new_refresh_token, httponly=True, secure=True, samesite='Strict')
     return response
 
+
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     response = jsonify({'message': 'Logged out'})
     response.set_cookie('refresh_token', '', expires=0)
     return response
-
-@auth_bp.route('/verify-email', methods=['GET'])
-def verify_email():
-    token = request.args.get('token')
-    
-    if not token:
-        return jsonify({'error': 'Verification token required'}), 400
-    
-    # Find verification record
-    verification = EmailVerification.query.filter_by(token=token).first()
-    
-    if not verification:
-        return jsonify({'error': 'Invalid verification token'}), 400
-    
-    if not verification.is_valid():
-        if verification.is_used:
-            return jsonify({'error': 'This verification link has already been used'}), 400
-        if verification.is_expired():
-            return jsonify({'error': 'This verification link has expired'}), 400
-    
-    # Mark user as verified
-    user = User.query.get(verification.user_id)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    user.is_email_verified = True
-    user.email_verified_at = datetime.now(timezone.utc)
-    verification.is_used = True
-    
-    try:
-        db.session.commit()
-        return jsonify({
-            'message': 'Email verified successfully. You can now log in.'
-        }), 200
-    except Exception as e:
-        db.session.rollback()
-        traceback.print_exc()
-        return jsonify({'error': 'Failed to verify email'}), 500
-
-@auth_bp.route('/resend-verification', methods=['POST'])
-def resend_verification():
-    data = request.get_json()
-    email = data.get('email')
-    
-    if not email:
-        return jsonify({'error': 'Email required'}), 400
-    
-    # Find user by email
-    user = User.query.filter_by(email=email).first()
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    if user.is_email_verified:
-        return jsonify({'error': 'Email already verified'}), 400
-    
-    # Invalidate old tokens
-    old_verifications = EmailVerification.query.filter_by(
-        user_id=user.id,
-        is_used=False
-    ).all()
-    for old_verification in old_verifications:
-        old_verification.is_used = True
-    
-    # Generate new verification token
-    token = EmailVerification.generate_token()
-    verification = EmailVerification(
-        user_id=user.id,
-        token=token,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
-    )
-    db.session.add(verification)
-    
-    try:
-        db.session.commit()
-        # Send verification email
-        send_verification_email(email, user.username, token)
-        return jsonify({
-            'message': 'Verification email sent. Please check your inbox.'
-        }), 200
-    except Exception as e:
-        db.session.rollback()
-        traceback.print_exc()
-        return jsonify({'error': 'Failed to send verification email'}), 500
