@@ -28,6 +28,18 @@ docker-compose up -d
 - PostgreSQL
 - Docker
 
+## ✨ Features
+
+- **User Authentication** - Secure registration and login with JWT tokens
+- **Email Verification** - Token-based email verification for new users
+- **Google OAuth** - Sign in with Google integration
+- **Real-time Messaging** - WebSocket-based chat functionality
+- **End-to-End Encryption** - Encrypted storage for sensitive data
+
+## 📖 Documentation
+
+- [Email Verification Setup](docs/EMAIL_VERIFICATION.md) - Configuration and usage guide
+
 ## 📋 Status
 
 🚧 **Work in Progress** - Core functionality implemented and being tested.
