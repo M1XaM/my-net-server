@@ -34,7 +34,7 @@ instance/
 .DS_Store
 Thumbs.db
 
-# Coverage/test reports
+# Coverage/test.py reports
 htmlcov/
 .coverage
 coverage.xml

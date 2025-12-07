@@ -6,7 +6,6 @@ import string
 import re
 from datetime import datetime, timedelta, timezone
 from app.utils.csrf_utils import generate_csrf_token, csrf_protect
-
 from app import db
 from app.models.user import User
 from app.utils.email_service import send_verification_email
@@ -19,26 +18,23 @@ from app.utils.jwt_utils import (
 
 auth_bp = Blueprint('auth', __name__)
 
-
 def is_valid_email(email):
     """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-
 def generate_verification_code():
     """Generate a 6-digit random verification code"""
-    return ''.join(random.choices(string.digits, k=6))
-
+    return ''. join(random.choices(string. digits, k=6))
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    email = data.get('email')
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    email = data.get('email', '').strip()
 
-    # ✅ Validate required fields
+    # Validate required fields
     if not username:
         return jsonify({'error': 'Username required'}), 400
     if not password:
@@ -46,26 +42,26 @@ def register():
     if not email:
         return jsonify({'error': 'Email required'}), 400
 
-    # ✅ Validate email format
+    # Validate email format
     if not is_valid_email(email):
         return jsonify({'error': 'Invalid email format'}), 400
 
-    # ✅ Check if email already exists
+    # Check if email already exists
     existing_email = User.query.filter_by(email=email).first()
     if existing_email:
         return jsonify({'error': 'Email already registered'}), 400
 
-    # ✅ Create new user
+    # Create new user
     new_user = User()
     new_user.username = username
     new_user.set_password(password)
     new_user.email = email
     new_user.is_email_verified = False
 
-    # ✅ Generate 6-digit verification code
+    # Generate 6-digit verification code
     verification_code = generate_verification_code()
     new_user.verification_code = verification_code
-    new_user.verification_code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    new_user.verification_code_expires_at = datetime.now(timezone. utc) + timedelta(minutes=15)
 
     try:
         db.session.add(new_user)
@@ -74,19 +70,18 @@ def register():
         send_verification_email(email, verification_code, username)
         print(f"📧 Verification code for {email}: {verification_code}")
 
-        # ✅ Return pending verification status
         return jsonify({
             'status': 'pending_verification',
             'user_id': new_user.id,
             'email': email,
-            'message': 'Verification code sent to your email.   Please verify to complete registration.'
+            'message': 'Verification code sent to your email.  Please verify to complete registration.'
         }), 201
 
     except IntegrityError as e:
         traceback.print_exc()
         db.session.rollback()
-        error_message = str(e.orig) if hasattr(e, 'orig') else str(e)
-        if 'email' in error_message.lower():
+        error_message = str(e. orig) if hasattr(e, 'orig') else str(e)
+        if 'email' in error_message. lower():
             return jsonify({'error': 'Email already exists'}), 400
         return jsonify({'error': 'Username already exists'}), 400
 
@@ -116,9 +111,17 @@ def verify_email():
     if user.verification_code != verification_code:
         return jsonify({'error': 'Invalid verification code'}), 400
 
-    # ✅ Check if code expired
-    if datetime.now(timezone.utc) > user.verification_code_expires_at:
-        return jsonify({'error': 'Verification code expired'}), 400
+    # ✅ Check if code expired - FIX: Make comparison timezone-naive
+    if user.verification_code_expires_at:
+        # Convert to naive datetime for comparison
+        expires_at = user.verification_code_expires_at
+        if isinstance(expires_at, datetime) and expires_at.tzinfo is not None:
+            # If it's timezone-aware, convert to naive UTC
+            expires_at = expires_at.replace(tzinfo=None)
+
+        current_time = datetime.now()  # ✅ Use naive datetime
+        if current_time > expires_at:
+            return jsonify({'error': 'Verification code expired'}), 400
 
     # ✅ Mark as verified and clear code
     user.is_email_verified = True
@@ -149,10 +152,9 @@ def verify_email():
         db.session.rollback()
         return jsonify({'error': 'Error verifying email'}), 500
 
-
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request. get_json()
     username = data.get('username')
     password = data.get('password')
     totp_token = data.get('totp_token')
@@ -162,17 +164,17 @@ def login():
     if not password:
         return jsonify({'error': 'Password required'}), 400
 
-    # ✅ Find user by hashed username
-    user = User.query.filter_by(username_hash=hash_username(username)).first()
+    # Find user by hashed username
+    user = User.query. filter_by(username_hash=hash_username(username)). first()
 
     if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid username or password'}), 401
 
-    # ✅ CHECK: Email must be verified
-    if not user.is_email_verified:
+    # Email must be verified
+    if not user. is_email_verified:
         return jsonify({'error': 'Please verify your email before logging in'}), 403
 
-    # ✅ Check if 2FA is enabled
+    # Check if 2FA is enabled
     if user.totp_enabled:
         if not totp_token:
             return jsonify({
@@ -184,9 +186,9 @@ def login():
         if not verify_totp(user.totp_secret, totp_token):
             return jsonify({'error': 'Invalid 2FA code'}), 401
 
-    # ✅ Normal login flow
-    access_token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
+    # Normal login flow
+    access_token = create_access_token(user. id)
+    refresh_token = create_refresh_token(user. id)
     csrf_token = generate_csrf_token()
 
     response = jsonify({
@@ -198,7 +200,6 @@ def login():
     })
     response.set_cookie('refresh_token', refresh_token, httponly=True, secure=True, samesite='Strict')
     return response, 200
-
 
 @auth_bp.route('/token/refresh', methods=['POST'])
 def refresh_token():
@@ -214,7 +215,6 @@ def refresh_token():
 
     response.set_cookie('refresh_token', new_refresh_token, httponly=True, secure=True, samesite='Strict')
     return response
-
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():

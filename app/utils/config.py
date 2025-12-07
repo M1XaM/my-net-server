@@ -25,9 +25,9 @@ class Config:
 
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os. getenv("MAIL_PORT", 587))
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "artiombozadji@gmail.com")
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "artem4iknagibator@gmail.com")
     MAIL_PASSWORD = os. getenv("MAIL_PASSWORD", "yohv agsn unct rapr")
-    MAIL_FROM_EMAIL = os.getenv("MAIL_FROM_EMAIL", "artiombozadji@gmail.com")
+    MAIL_FROM_EMAIL = os.getenv("MAIL_FROM_EMAIL", "MyNet")
     MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "MyNet")
 
 
