@@ -37,7 +37,7 @@ def handle_google_callback():
     )
     
     if success:
-        response = jsonify(result["user"])
+        response = jsonify({"user": result["user"]})
         response.set_cookie(
             'refresh_token',
             result["tokens"]["refresh_token"],
