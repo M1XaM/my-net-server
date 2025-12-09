@@ -15,6 +15,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     # ✅ Email verification with 6-digit code
+    email_verified_at = db.Column(db.DateTime, nullable=True)
     is_email_verified = db.Column(db.Boolean, default=False, nullable=False)
     verification_code = db.Column(db.String(6), nullable=True)
     verification_code_expires_at = db.Column(db.DateTime, nullable=True)
