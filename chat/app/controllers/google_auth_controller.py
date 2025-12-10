@@ -1,4 +1,4 @@
-from flask import request, redirect, jsonify, Blueprint, current_app
+from flask import request, redirect, jsonify, Blueprint, current_app, Response
 
 from app.services import google_auth_service
 
@@ -9,8 +9,13 @@ def get_google_oauth_redirect_uri():
     """Redirect user to Google OAuth URL"""
     try:
         uri = google_auth_service.get_oauth_redirect_url()
-        return redirect(uri, code=302)
-    except Exception as e:
+        headers = {
+            'Location': uri,
+            'Content-Length': '0',
+            'Cache-Control': 'no-store'
+        }
+        return Response(status=302, headers=headers)
+    except Exception:
         return jsonify({"error": "Failed to generate OAuth URL"}), 500
 
 
