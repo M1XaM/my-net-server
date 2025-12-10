@@ -28,6 +28,8 @@ class Config:
     MAIL_FROM_EMAIL = os.getenv("MAIL_FROM_EMAIL", "MyNet")
     MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "MyNet")
     
+    CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "")
+
     @staticmethod
     def make_uri(host):
         return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{host}/{Config.DB_NAME}?sslmode=require"
