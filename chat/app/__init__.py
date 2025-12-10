@@ -17,11 +17,11 @@ def create_app():
     app = Flask(__name__)
 
     app.config.from_object('app.utils.config.Config')
-    origins_list = [o.strip() for o in Config.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]
+    origins_list = [o.strip() for o in Config.CORS_ALLOWED_ORIGINS.split(',') if o.strip()] + ["https://localhost:5173"]
     if origins_list:
-        CORS(app, resources={r"/api/*": {"origins": origins_list}})
+        CORS(app,supports_credentials=True, resources={r"/api/*": {"origins": origins_list}})
     else:
-        CORS(app, resources={r"/api/*": {"origins": []}})
+        CORS(app,supports_credentials=True,  resources={r"/api/*": {"origins": []}})
 
     socketio.init_app(app, cors_allowed_origins=(origins_list if origins_list else None), path="/api/socket.io")
 
