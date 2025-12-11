@@ -1,11 +1,42 @@
 import jwt
 import aiohttp
-import asyncio
+import urllib.parse
+import secrets
 from typing import Dict, Any, Tuple, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user_repository import get_or_create_google_user
-from app.utils.oauth_google_utils import state_storage, generate_google_oauth_redirect_uri
-from app.utils.jwt_utils import create_access_token, create_refresh_token
+from app.repositories import user_repository
+from app.utils.security import create_access_token, create_refresh_token
+from app.utils.config import settings
+
+
+# State storage for OAuth
+state_storage: set = set()
+
+
+def generate_google_oauth_redirect_uri() -> str:
+    """Generate Google OAuth redirect URI"""
+    random_state = secrets.token_urlsafe(16)
+    state_storage.add(random_state)
+
+    query_params = {
+        "client_id": settings.OAUTH_GOOGLE_CLIENT_ID,
+        "redirect_uri": "https://localhost/auth/google",
+        "response_type": "code",
+        "scope": " ".join([
+            "openid",
+            "profile",
+            "email",
+        ]),
+        "access_type": "offline",
+        "state": random_state,
+        "prompt": "select_account consent"
+    }
+    
+    query_string = urllib.parse.urlencode(query_params, quote_via=urllib.parse.quote)
+    base_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    return f"{base_url}?{query_string}"
+
 
 def get_oauth_redirect_url() -> str:
     """Generate Google OAuth redirect URI"""
@@ -44,13 +75,11 @@ async def exchange_code_for_token(
                 error_data = await response.json()
                 raise Exception(f"Google token exchange failed: {error_data}")
             
-            res = await response.json()
-            return res
+            return await response.json()
 
 
 def decode_google_token(id_token: str) -> Dict[str, Any]:
     """Decode Google ID token (without signature verification for testing)"""
-    # WARNING: In production, you should verify the signature
     return jwt.decode(
         id_token,
         algorithms=["RS256"],
@@ -68,6 +97,7 @@ def extract_user_info(decoded_token: Dict[str, Any]) -> Tuple[str, str, str]:
         raise ValueError("Invalid Google user data: missing sub field")
     
     return google_id, email, name
+
 
 def create_auth_response(user) -> Dict[str, Any]:
     """Create authentication response with tokens"""
@@ -88,7 +118,9 @@ def create_auth_response(user) -> Dict[str, Any]:
         }
     }
 
+
 async def handle_google_callback(
+    db: AsyncSession,
     code: str,
     state: str,
     client_id: str,
@@ -98,72 +130,38 @@ async def handle_google_callback(
     Handle Google OAuth callback
     Returns: (success, data, status_code)
     """
-    # Validate state
     is_valid, error_message = validate_state(state)
     if not is_valid:
         return False, {"detail": error_message}, 400
     
     try:
-        # Exchange code for tokens
         token_response = await exchange_code_for_token(
             code=code,
             client_id=client_id,
             client_secret=client_secret
         )
         
-        # Decode ID token
         id_token = token_response.get("id_token")
         if not id_token:
             return False, {"error": "No ID token in response"}, 400
             
         decoded_token = decode_google_token(id_token)
         
-        # Extract user info
         google_id, email, name = extract_user_info(decoded_token)
         
-        # Get or create user
-        user = get_or_create_google_user(google_id, name, email)
+        user = await user_repository.get_or_create_google_user(db, google_id, name, email)
         
-        # Create auth response
         auth_data = create_auth_response(user)
         
         return True, auth_data, 200
         
     except ValueError as e:
-        # Business logic errors
         return False, {"error": str(e)}, 400
     except Exception as e:
-        # Unexpected errors
         print(f"Google OAuth error: {str(e)}")
         return False, {"error": "Authentication failed"}, 500
 
 
-# Synchronous wrapper for async function
-def handle_google_callback_sync(
-    code: str,
-    state: str,
-    client_id: str,
-    client_secret: str
-) -> Tuple[bool, Dict[str, Any], int]:
-    """
-    Synchronous wrapper for async callback handler
-    """
-    try:
-        return asyncio.run(
-            handle_google_callback(code, state, client_id, client_secret)
-        )
-    except RuntimeError as e:
-        # Handle case where event loop is already running
-        if "asyncio.run() cannot be called from a running event loop" in str(e):
-            # Try to get existing event loop
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(
-                handle_google_callback(code, state, client_id, client_secret)
-            )
-        raise
-
-
-# Additional helper functions
 def validate_callback_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
     """Validate callback request data"""
     code = data.get("code")

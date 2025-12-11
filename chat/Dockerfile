@@ -3,10 +3,10 @@ FROM python:3.11-slim as build
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y build-essential && \
+    apt-get install -y build-essential libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
@@ -14,6 +14,11 @@ COPY . /app
 FROM python:3.11-slim as runtime
 
 WORKDIR /app
+
+# Install libpq for psycopg2 runtime
+RUN apt-get update && \
+    apt-get install -y libpq5 && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=build /usr/local/bin /usr/local/bin
@@ -24,8 +29,6 @@ USER appuser
 
 EXPOSE 5000
 
-CMD ["python3" , "wsgi.py"]
-
-# The Gunicorn with multiple workers, or migrating to FastAPI, would cause problems
-# because the database management is handled completely synchronously in the current setup.
-# CMD ["gunicorn", "--workers", "1", "--bind", "0.0.0.0:5000", "wsgi:app"]
+# Run with uvicorn for full async support
+# Workers can be increased since we're now fully async
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]
