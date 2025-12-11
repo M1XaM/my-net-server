@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,10 +53,23 @@ async def register(
     # Password validation
     if not password:
         raise HTTPException(status_code=400, detail="Password is required")
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
     if len(password) > 128:
         raise HTTPException(status_code=400, detail="Password must not exceed 128 characters")
+    
+    # Password strength requirements (must meet at least 4 of 5)
+    password_checks = [
+        len(password) >= 8,  # At least 8 characters
+        bool(re.search(r'[A-Z]', password)),  # Contains uppercase
+        bool(re.search(r'[a-z]', password)),  # Contains lowercase
+        bool(re.search(r'\d', password)),  # Contains number
+        bool(re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]', password)),  # Contains special char
+    ]
+    met_requirements = sum(password_checks)
+    if met_requirements < 4:
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must meet at least 4 of: 8+ characters, uppercase letter, lowercase letter, number, special character (!@#$%^&*)"
+        )
     
     # Email validation
     if not email:
