@@ -20,14 +20,23 @@ async def setup_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Generate QR code for user to scan"""
+    if not user_id or user_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Valid user ID is required to set up 2FA"
+        )
+    
     secret, qr_code, error = await setup_totp(db, user_id)
 
-    if error == 'User not found':
-        raise HTTPException(status_code=404, detail=error)
+    if error:
+        if 'not found' in error.lower():
+            raise HTTPException(status_code=404, detail=error)
+        raise HTTPException(status_code=400, detail=error)
 
     return {
         'secret': secret,
-        'qr_code': qr_code
+        'qr_code': qr_code,
+        'message': 'Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy)'
     }
 
 
@@ -38,20 +47,40 @@ async def enable_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Enable 2FA after user confirms it works"""
-    error = await enable_totp(db, user_id, request.token)
+    if not user_id or user_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Valid user ID is required"
+        )
+    
+    token = request.token.strip() if request.token else None
+    
+    if not token:
+        raise HTTPException(
+            status_code=400, 
+            detail="A 6-digit code from your authenticator app is required to enable 2FA"
+        )
+    
+    if len(token) != 6 or not token.isdigit():
+        raise HTTPException(
+            status_code=400, 
+            detail="The verification code must be exactly 6 digits"
+        )
+    
+    error = await enable_totp(db, user_id, token)
 
     if error:
         status_code = 400
-        if error == 'Token required':
-            status_code = 400
-        elif error == 'Setup 2FA first':
-            status_code = 400
-        elif error == 'Invalid token':
+        if 'not found' in error.lower():
+            status_code = 404
+        elif 'setup' in error.lower():
             status_code = 400
         
         raise HTTPException(status_code=status_code, detail=error)
 
-    return {'message': '2FA enabled'}
+    return {
+        'message': '2FA has been successfully enabled on your account. You will need your authenticator app to log in'
+    }
 
 
 @router.post("/2fa/disable")
@@ -61,17 +90,37 @@ async def disable_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Disable 2FA"""
-    error = await disable_totp(db, user_id, request.token)
+    if not user_id or user_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Valid user ID is required"
+        )
+    
+    token = request.token.strip() if request.token else None
+    
+    if not token:
+        raise HTTPException(
+            status_code=400, 
+            detail="A 6-digit code from your authenticator app is required to disable 2FA"
+        )
+    
+    if len(token) != 6 or not token.isdigit():
+        raise HTTPException(
+            status_code=400, 
+            detail="The verification code must be exactly 6 digits"
+        )
+    
+    error = await disable_totp(db, user_id, token)
 
     if error:
         status_code = 400
-        if error == 'Token required':
-            status_code = 400
-        elif error == 'User not found':
+        if 'not found' in error.lower():
             status_code = 404
-        elif error == 'Invalid token':
+        elif 'not enabled' in error.lower() or 'missing' in error.lower():
             status_code = 400
             
         raise HTTPException(status_code=status_code, detail=error)
 
-    return {'message': '2FA disabled'}
+    return {
+        'message': '2FA has been successfully disabled on your account'
+    }

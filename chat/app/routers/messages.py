@@ -21,6 +21,33 @@ async def get_messages(
     db: AsyncSession = Depends(get_db)
 ):
     """Get messages between two users"""
+    # Validate user_id
+    if user_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="User ID must be a positive integer"
+        )
+    
+    # Validate other_id
+    if other_id <= 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Other user ID must be a positive integer"
+        )
+    
+    # Check if requesting user matches the authenticated user
+    if user_id != current_user_id:
+        raise HTTPException(
+            status_code=403, 
+            detail="You can only access your own conversations"
+        )
+    
+    if user_id == other_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot retrieve conversation with yourself"
+        )
+    
     success, messages, status_code = await message_service.fetch_conversation_messages(
         db, user_id, other_id
     )
@@ -38,9 +65,25 @@ async def run_code(
 ):
     """Run code via the runner service"""
     if not request.code:
-        raise HTTPException(status_code=400, detail="Invalid request, missing code")
+        raise HTTPException(
+            status_code=400, 
+            detail="Code is required for execution"
+        )
     
-    success, result, status_code = await message_service.execute_code_via_runner(request.code)
+    code = request.code.strip()
+    if not code:
+        raise HTTPException(
+            status_code=400, 
+            detail="Code cannot be empty or contain only whitespace"
+        )
+    
+    if len(code) > 50000:
+        raise HTTPException(
+            status_code=400, 
+            detail="Code exceeds maximum allowed length of 50,000 characters"
+        )
+    
+    success, result, status_code = await message_service.execute_code_via_runner(code)
     
     if not success:
         raise HTTPException(status_code=status_code, detail=result.get("error"))

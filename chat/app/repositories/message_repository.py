@@ -35,18 +35,22 @@ async def save_message(
     sender_result = await db.execute(select(User).where(User.id == sender_id))
     sender = sender_result.scalar_one_or_none()
     if not sender:
-        return False, {"error": f"Sender with ID {sender_id} does not exist"}, 400
+        return False, {"error": f"Cannot send message: your user account (ID {sender_id}) was not found"}, 404
     
     # Verify receiver exists
     receiver_result = await db.execute(select(User).where(User.id == receiver_id))
     receiver = receiver_result.scalar_one_or_none()
     if not receiver:
-        return False, {"error": f"Receiver with ID {receiver_id} does not exist"}, 400
+        return False, {"error": f"Cannot send message: the recipient (ID {receiver_id}) does not exist"}, 404
     
-    message = Message(sender_id=sender_id, receiver_id=receiver_id)
-    message.content = content
-    
-    db.add(message)
-    await db.flush()
-    await db.refresh(message)
-    return True, message, 200
+    try:
+        message = Message(sender_id=sender_id, receiver_id=receiver_id)
+        message.content = content
+        
+        db.add(message)
+        await db.flush()
+        await db.refresh(message)
+        return True, message, 200
+    except Exception as e:
+        await db.rollback()
+        return False, {"error": f"Failed to save message: {str(e)}"}, 500

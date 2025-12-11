@@ -44,9 +44,9 @@ def get_oauth_redirect_url() -> str:
 
 
 def validate_state(state: str) -> Tuple[bool, Optional[str]]:
-    """Validate the OAuth state parameter"""
+    """Validate the OAuth state parameter against stored states"""
     if state not in state_storage:
-        return False, "Invalid state parameter"
+        return False, "Invalid or expired OAuth state. Please start the authentication process again"
     return True, None
 
 
@@ -59,23 +59,27 @@ async def exchange_code_for_token(
     """Exchange authorization code for Google tokens"""
     google_token_url = "https://oauth2.googleapis.com/token"
     
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            url=google_token_url,
-            data={
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-                "code": code,
-            },
-            ssl=False,
-        ) as response:
-            if response.status != 200:
-                error_data = await response.json()
-                raise Exception(f"Google token exchange failed: {error_data}")
-            
-            return await response.json()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url=google_token_url,
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                    "code": code,
+                },
+                ssl=False,
+            ) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    error_description = error_data.get('error_description', error_data.get('error', 'Unknown error'))
+                    raise Exception(f"Google authentication failed: {error_description}")
+                
+                return await response.json()
+    except aiohttp.ClientError as e:
+        raise Exception(f"Unable to connect to Google authentication servers: {str(e)}")
 
 
 def decode_google_token(id_token: str) -> Dict[str, Any]:
@@ -94,7 +98,10 @@ def extract_user_info(decoded_token: Dict[str, Any]) -> Tuple[str, str, str]:
     name = decoded_token.get("name") or email or f"user_{google_id}"
     
     if not google_id:
-        raise ValueError("Invalid Google user data: missing sub field")
+        raise ValueError("Google user ID is missing from the authentication response")
+    
+    if not email:
+        raise ValueError("Email address is required but was not provided by Google. Please ensure your Google account has a verified email")
     
     return google_id, email, name
 
@@ -132,7 +139,10 @@ async def handle_google_callback(
     """
     is_valid, error_message = validate_state(state)
     if not is_valid:
-        return False, {"detail": error_message}, 400
+        return False, {"error": error_message}, 400
+    
+    # Remove used state to prevent replay attacks
+    state_storage.discard(state)
     
     try:
         token_response = await exchange_code_for_token(
@@ -143,7 +153,7 @@ async def handle_google_callback(
         
         id_token = token_response.get("id_token")
         if not id_token:
-            return False, {"error": "No ID token in response"}, 400
+            return False, {"error": "Google did not return an identity token. Please try again"}, 400
             
         decoded_token = decode_google_token(id_token)
         
@@ -158,18 +168,16 @@ async def handle_google_callback(
     except ValueError as e:
         return False, {"error": str(e)}, 400
     except Exception as e:
-        print(f"Google OAuth error: {str(e)}")
-        return False, {"error": "Authentication failed"}, 500
+        error_msg = str(e)
+        if "authentication failed" in error_msg.lower():
+            return False, {"error": error_msg}, 400
+        print(f"Google OAuth error: {error_msg}")
+        return False, {"error": "Google authentication failed. Please try again"}, 500
 
 
 def validate_callback_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
-    """Validate callback request data"""
-    code = data.get("code")
-    state = data.get("state")
-    
-    if not code:
-        return False, None, None, "Missing authorization code"
-    if not state:
-        return False, None, None, "Missing state parameter"
+    """Extract and return callback data (validation done in router)"""
+    code = data.get("code", "").strip()
+    state = data.get("state", "").strip()
     
     return True, code, state, None

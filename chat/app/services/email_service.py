@@ -21,7 +21,7 @@ async def setup_totp(db: AsyncSession, user_id: int) -> tuple[str | None, str | 
     """
     user = await user_repository.get_by_id(db, user_id)
     if not user:
-        return None, None, 'User not found'
+        return None, None, 'User not found. The account may have been deleted'
 
     secret = generate_totp_secret()
     
@@ -38,19 +38,19 @@ async def enable_totp(db: AsyncSession, user_id: int, token: str) -> str | None:
     Verifies the token and enables 2FA for the user.
     Returns error_message or None on success.
     """
-    if not token:
-        return 'Token required'
-
     user = await user_repository.get_by_id(db, user_id)
 
-    if not user or not user.totp_secret:
-        return 'Setup 2FA first'
+    if not user:
+        return 'User not found. The account may have been deleted'
+    
+    if not user.totp_secret:
+        return 'Please complete the 2FA setup first by scanning the QR code'
 
     if verify_totp(user.totp_secret, token):
         await user_repository.enable_user_totp(db, user)
         return None
     else:
-        return 'Invalid token'
+        return 'The verification code is invalid or has expired. Please try a new code from your authenticator app'
 
 
 async def disable_totp(db: AsyncSession, user_id: int, token: str) -> str | None:
@@ -58,19 +58,22 @@ async def disable_totp(db: AsyncSession, user_id: int, token: str) -> str | None
     Verifies the token and disables 2FA for the user.
     Returns error_message or None on success.
     """
-    if not token:
-        return 'Token required'
-
     user = await user_repository.get_by_id(db, user_id)
 
     if not user:
-        return 'User not found'
+        return 'User not found. The account may have been deleted'
+    
+    if not user.totp_enabled:
+        return '2FA is not currently enabled on your account'
+    
+    if not user.totp_secret:
+        return '2FA configuration is missing. Please contact support'
             
-    if user.totp_secret and verify_totp(user.totp_secret, token):
+    if verify_totp(user.totp_secret, token):
         await user_repository.disable_user_totp(db, user)
         return None
     else:
-        return 'Invalid token'
+        return 'The verification code is invalid or has expired. Please try a new code from your authenticator app'
 
 
 async def send_verification_email_async(

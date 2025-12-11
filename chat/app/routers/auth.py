@@ -33,28 +33,48 @@ async def register(
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new user"""
-    username = request.username.strip()
-    password = request.password.strip()
-    email = request.email.strip()
+    # Input validation
+    username = request.username.strip() if request.username else ""
+    password = request.password.strip() if request.password else ""
+    email = request.email.strip().lower() if request.email else ""
     
+    # Username validation
     if not username:
-        raise HTTPException(status_code=400, detail="Username required")
+        raise HTTPException(status_code=400, detail="Username is required")
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long")
+    if len(username) > 50:
+        raise HTTPException(status_code=400, detail="Username must not exceed 50 characters")
+    if not username.replace('_', '').replace('-', '').isalnum():
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, underscores, and hyphens")
+    
+    # Password validation
     if not password:
-        raise HTTPException(status_code=400, detail="Password required")
-    if not email or not is_valid_email(email):
-        raise HTTPException(status_code=400, detail="Invalid email format")
+        raise HTTPException(status_code=400, detail="Password is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if len(password) > 128:
+        raise HTTPException(status_code=400, detail="Password must not exceed 128 characters")
+    
+    # Email validation
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if len(email) > 255:
+        raise HTTPException(status_code=400, detail="Email must not exceed 255 characters")
+    if not is_valid_email(email):
+        raise HTTPException(status_code=400, detail="Please provide a valid email address (e.g., user@example.com)")
 
     success, result, status_code = await auth_service.register_user(db, username, password, email)
     
     if not success:
-        status = 409 if 'already' in result.get("error", "") else 400
-        raise HTTPException(status_code=status, detail=result.get("error"))
+        error_msg = result.get("error", "Registration failed")
+        raise HTTPException(status_code=status_code, detail=error_msg)
 
     return {
         'status': 'pending_verification',
         'user_id': result.get("user_id"),
         'email': email,
-        'message': 'Verification code sent to your email. Please verify to complete registration.'
+        'message': 'A verification code has been sent to your email. Please enter it to complete registration.'
     }
 
 
@@ -65,12 +85,18 @@ async def verify_email(
 ):
     """Verify email with 6-digit code"""
     if not request.user_id:
-        raise HTTPException(status_code=400, detail="User ID required")
+        raise HTTPException(status_code=400, detail="User ID is required to verify your email")
+    if request.user_id <= 0:
+        raise HTTPException(status_code=400, detail="User ID must be a positive number")
     if not request.verification_code:
-        raise HTTPException(status_code=400, detail="Verification code required")
+        raise HTTPException(status_code=400, detail="Verification code is required")
+    
+    code = request.verification_code.strip()
+    if len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="Verification code must be exactly 6 digits")
 
     success, result, status = await auth_service.verify_email(
-        db, request.user_id, request.verification_code
+        db, request.user_id, code
     )
     
     if not success:
@@ -92,7 +118,7 @@ async def verify_email(
         'email': result["email"],
         'access_token': result["access_token"],
         'csrf_token': result["csrf_token"],
-        'message': 'Email verified successfully!'
+        'message': 'Your email has been verified successfully! You are now logged in.'
     }
 
 
@@ -103,11 +129,22 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     """Handle login API request"""
-    if not request.username or not request.password:
-        raise HTTPException(status_code=400, detail="Username and password are required")
+    username = request.username.strip() if request.username else ""
+    password = request.password.strip() if request.password else ""
+    
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    
+    totp_token = None
+    if request.totp_token:
+        totp_token = request.totp_token.strip()
+        if totp_token and (len(totp_token) != 6 or not totp_token.isdigit()):
+            raise HTTPException(status_code=400, detail="2FA code must be exactly 6 digits")
 
     success, result, status_code, refresh_token = await auth_service.login_user(
-        db, request.username, request.password, request.totp_token
+        db, username, password, totp_token
     )
     
     if not success:
@@ -134,7 +171,17 @@ async def refresh_token(
     """Handle token refresh API request"""
     refresh_token = request.cookies.get('refresh_token')
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
+        raise HTTPException(
+            status_code=401, 
+            detail="Your session has expired. Please log in again"
+        )
+    
+    refresh_token = refresh_token.strip()
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid session token. Please log in again"
+        )
     
     success, result, status_code = await auth_service.refresh_access_token(refresh_token)
     

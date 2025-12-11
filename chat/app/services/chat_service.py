@@ -18,9 +18,6 @@ def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[st
     Returns:
         Tuple of (success, error_message, updated_users)
     """
-    if not user_data or 'id' not in user_data:
-        return False, 'Invalid user data', {}
-    
     user_id = user_data['id']
     _online_users[user_id] = user_data
     
@@ -37,9 +34,6 @@ def handle_user_disconnection(user_data: Dict[str, Any]) -> Tuple[bool, Optional
     Returns:
         Tuple of (success, error_message, updated_users)
     """
-    if not user_data or 'id' not in user_data:
-        return False, 'Invalid user data', {}
-    
     user_id = user_data['id']
     _online_users.pop(user_id, None)
     
@@ -88,33 +82,19 @@ def create_chat_room(user_id: int, other_id: int) -> str:
 
 def validate_message_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[int], Optional[int], Optional[str]]:
     """
-    Validate message data
+    Validate and sanitize message data
     
     Args:
-        data: Message data dictionary
+        data: Message data dictionary (already validated by router)
         
     Returns:
         Tuple of (is_valid, error_message, sender_id, receiver_id, content)
     """
-    sender_id = data.get('sender_id')
-    receiver_id = data.get('receiver_id')
-    content = data.get('content')
+    sender_id = int(data.get('sender_id'))
+    receiver_id = int(data.get('receiver_id'))
+    content = data.get('content', '').strip()
     
-    if not sender_id or not receiver_id or not content:
-        return False, 'Missing required fields', None, None, None
-    
-    try:
-        sender_id = int(sender_id)
-        receiver_id = int(receiver_id)
-    except (ValueError, TypeError):
-        return False, 'Invalid user IDs', None, None, None
-    
-    if sender_id <= 0 or receiver_id <= 0:
-        return False, 'User IDs must be positive integers', None, None, None
-    
-    if not isinstance(content, str) or not content.strip():
-        return False, 'Message content cannot be empty', None, None, None
-    
+    # Sanitize content for XSS prevention (business logic)
     sanitized_content = sanitize_message(content)
     
     return True, None, sender_id, receiver_id, sanitized_content
@@ -184,7 +164,8 @@ async def handle_send_message(
 
 def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[int], Optional[int]]:
     """
-    Validate join room data
+    Validate join room data from WebSocket messages
+    Note: WebSocket messages bypass router validation, so basic checks are needed here
     
     Args:
         data: Join room data dictionary
@@ -192,20 +173,26 @@ def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optio
     Returns:
         Tuple of (is_valid, error_message, user_id, other_id)
     """
+    if not data or not isinstance(data, dict):
+        return False, 'Invalid join data format', None, None
+    
     user_id = data.get('user_id')
     other_id = data.get('other_id')
     
-    if not user_id or not other_id:
-        return False, 'Missing user_id or other_id', None, None
+    if user_id is None or other_id is None:
+        return False, 'Both user_id and other_id are required', None, None
     
     try:
         user_id = int(user_id)
         other_id = int(other_id)
     except (ValueError, TypeError):
-        return False, 'Invalid user IDs', None, None
+        return False, 'User IDs must be valid integers', None, None
     
     if user_id <= 0 or other_id <= 0:
         return False, 'User IDs must be positive integers', None, None
+    
+    if user_id == other_id:
+        return False, 'Cannot join a chat room with yourself', None, None
     
     return True, None, user_id, other_id
 

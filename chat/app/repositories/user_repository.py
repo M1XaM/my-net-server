@@ -22,10 +22,10 @@ async def create_user(
     new_user.set_password(password)
     
     verification_code = generate_verification_code()
-    new_user.email = email
+    new_user.email = email.lower()
     new_user.is_email_verified = False
     new_user.verification_code = verification_code
-    new_user.verification_code_expires_at = datetime.utcnow() + timedelta(minutes=15)  # Use naive UTC datetime
+    new_user.verification_code_expires_at = datetime.utcnow() + timedelta(minutes=15)
 
     try:
         db.add(new_user)
@@ -42,14 +42,18 @@ async def create_user(
         error_message = str(e.orig) if hasattr(e, 'orig') else str(e)
 
         if 'email' in error_message.lower():
-            result = {"error": 'Email already exists'}
+            result = {"error": 'An account with this email address already exists'}
         elif 'username' in error_message.lower():
-            result = {"error": 'Username already exists'}
+            result = {"error": 'This username is already taken. Please choose a different one'}
         else:
-            result = {"error": error_message}
+            result = {"error": f'Unable to create account: {error_message}'}
 
         traceback.print_exc()
-        return False, result, 500
+        return False, result, 409
+    except Exception as e:
+        await db.rollback()
+        traceback.print_exc()
+        return False, {"error": f"An unexpected error occurred while creating your account: {str(e)}"}, 500
 
 
 async def mark_email_as_verified(db: AsyncSession, user: User) -> None:
@@ -102,9 +106,14 @@ async def get_or_create_google_user(
     
     if not user:
         try:
-            user = await create_google_user(db, username, google_id, email)
+            user = await create_google_user(db, username, google_id, email.lower())
         except IntegrityError as e:
-            raise ValueError(f"Failed to create user: {str(e)}")
+            error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+            if 'email' in error_msg.lower():
+                raise ValueError("An account with this email already exists. Please sign in with your password instead")
+            if 'username' in error_msg.lower():
+                raise ValueError("Unable to create account: username conflict. Please try again")
+            raise ValueError(f"Unable to create your account: {error_msg}")
     
     return user
 

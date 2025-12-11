@@ -21,16 +21,27 @@ async def register_user(
     email: str
 ) -> tuple[bool, dict, int]:
     """Register a new user and send verification email"""
+    # Check for existing email
     existing_email = await user_repository.get_by_email(db, email)
     if existing_email:
-        return False, {'error': 'Email already registered'}, 400
+        return False, {'error': 'An account with this email address already exists'}, 409
+    
+    # Check for existing username
+    existing_username = await user_repository.get_by_username(db, username)
+    if existing_username:
+        return False, {'error': 'This username is already taken. Please choose a different one'}, 409
     
     success, result, status_code = await user_repository.create_user(
         db, username=username, password=password, email=email
     )
 
     if not success:
-        return False, {'error': result.get('error', 'Registration failed')}, status_code
+        error_msg = result.get('error', 'Registration failed')
+        if 'email' in error_msg.lower():
+            return False, {'error': 'An account with this email address already exists'}, 409
+        if 'username' in error_msg.lower():
+            return False, {'error': 'This username is already taken. Please choose a different one'}, 409
+        return False, {'error': f'Registration failed: {error_msg}'}, status_code
 
     # Send verification email asynchronously
     await send_verification_email_async(email, result.get("verification_code"), username)
@@ -52,22 +63,22 @@ async def login_user(
         user = await user_repository.get_by_username(db, username)
     except Exception:
         traceback.print_exc()
-        return False, {'error': 'Internal server error during login'}, 500, None
+        return False, {'error': 'An unexpected error occurred during login. Please try again'}, 500, None
 
     if not user or not user.check_password(password):
-        return False, {'error': 'Invalid username or password'}, 401, None
+        return False, {'error': 'The username or password you entered is incorrect'}, 401, None
     
     if not user.is_email_verified:
-        return False, {'error': 'Please verify your email before logging in'}, 403, None
+        return False, {'error': 'Your email address has not been verified. Please check your inbox for the verification email'}, 403, None
 
     if user.totp_enabled:
         if not totp_token:
             return False, {
                 'requires_2fa': True,
-                'message': 'Please provide 2FA code'
+                'message': 'Two-factor authentication is enabled. Please enter your 6-digit authenticator code'
             }, 200, None
         if not verify_totp(user.totp_secret, totp_token):
-            return False, {'error': 'Invalid 2FA code'}, 401, None
+            return False, {'error': 'The 2FA code you entered is invalid or has expired. Please try again with a new code'}, 401, None
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
@@ -87,15 +98,18 @@ async def refresh_access_token(refresh_token: str) -> tuple[bool, dict, int]:
     Generate new access token using refresh token
     Returns: (success, data, status_code)
     """
-    if not refresh_token:
-        return False, {'error': 'Refresh token required'}, 401
-
     try:
         payload = decode_token(refresh_token)
-        if not payload or payload.get('type') != 'refresh':
-            return False, {'error': 'Invalid refresh token'}, 401
+        if not payload:
+            return False, {'error': 'Your session has expired. Please log in again'}, 401
+        
+        if payload.get('type') != 'refresh':
+            return False, {'error': 'Invalid token type. Expected a refresh token'}, 401
 
-        user_id = payload['user_id']
+        user_id = payload.get('user_id')
+        if not user_id or not isinstance(user_id, int):
+            return False, {'error': 'Invalid token payload. Please log in again'}, 401
+        
         access_token = create_access_token(user_id)
         new_refresh_token = create_refresh_token(user_id)
         csrf_token = generate_csrf_token()
@@ -110,7 +124,7 @@ async def refresh_access_token(refresh_token: str) -> tuple[bool, dict, int]:
 
     except Exception:
         traceback.print_exc()
-        return False, {'error': 'Token refresh failed'}, 401
+        return False, {'error': 'Failed to refresh your session. Please log in again'}, 401
 
 
 def create_auth_tokens(user_id: int) -> dict:
@@ -127,15 +141,16 @@ async def verify_email(
     user_id: int,
     verification_code: str
 ) -> tuple[bool, dict, int]:
-    """Verify user's email with verification code"""
-    user = await user_repository.get_by_id(db, user_id)
+    """Verify user's email with verification code\"\"\"\n    user = await user_repository.get_by_id(db, user_id)
 
     if not user:
-        return False, {'error': 'User not found'}, 404
+        return False, {'error': 'No user found with the provided ID. The account may have been deleted'}, 404
+    
     if user.is_email_verified:
-        return False, {'error': 'Email already verified'}, 400
+        return False, {'error': 'This email address has already been verified. You can proceed to log in'}, 400
+    
     if user.verification_code != verification_code:
-        return False, {'error': 'Invalid verification code'}, 400
+        return False, {'error': 'The verification code you entered is incorrect. Please check and try again'}, 400
     
     if user.verification_code_expires_at:
         expires_at = user.verification_code_expires_at
@@ -144,7 +159,7 @@ async def verify_email(
 
         current_time = datetime.now()
         if current_time > expires_at:
-            return False, {'error': 'Verification code expired'}, 400
+            return False, {'error': 'Your verification code has expired. Please request a new one'}, 400
 
     await user_repository.mark_email_as_verified(db, user)
 

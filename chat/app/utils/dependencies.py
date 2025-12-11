@@ -16,13 +16,27 @@ async def get_current_user_id(
     Dependency for extracting and validating JWT token from Authorization header.
     Returns the user_id from the token.
     """
-    token = credentials.credentials
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is required. Please log in to access this resource",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = credentials.credentials.strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token cannot be empty. Please log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     payload = decode_token(token)
     
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail="Your session has expired or the token is invalid. Please log in again",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -30,7 +44,14 @@ async def get_current_user_id(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
+            detail="Authentication token is malformed. Please log in again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not isinstance(user_id, int) or user_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user identity in token. Please log in again",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
