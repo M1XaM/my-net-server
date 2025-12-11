@@ -1,6 +1,7 @@
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import user_repository
@@ -14,7 +15,7 @@ from app.utils.security import (
 from app.utils.config import settings
 
 
-async def setup_totp(db: AsyncSession, user_id: int) -> tuple[str | None, str | None, str | None]:
+async def setup_totp(db: AsyncSession, user_id: UUID) -> tuple[str | None, str | None, str | None]:
     """
     Generates a new TOTP secret, saves it, and creates a QR code.
     Returns (secret, qr_code, error_message).
@@ -33,7 +34,7 @@ async def setup_totp(db: AsyncSession, user_id: int) -> tuple[str | None, str | 
     return secret, qr_code, None
 
 
-async def enable_totp(db: AsyncSession, user_id: int, token: str) -> str | None:
+async def enable_totp(db: AsyncSession, user_id: UUID, token: str) -> str | None:
     """
     Verifies the token and enables 2FA for the user.
     Returns error_message or None on success.
@@ -53,7 +54,7 @@ async def enable_totp(db: AsyncSession, user_id: int, token: str) -> str | None:
         return 'The verification code is invalid or has expired. Please try a new code from your authenticator app'
 
 
-async def disable_totp(db: AsyncSession, user_id: int, token: str) -> str | None:
+async def disable_totp(db: AsyncSession, user_id: UUID, token: str) -> str | None:
     """
     Verifies the token and disables 2FA for the user.
     Returns error_message or None on success.

@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
@@ -17,7 +18,7 @@ class RegisterRequest(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    user_id: int
+    user_id: str  # UUID as string
     verification_code: str
 
 
@@ -86,8 +87,12 @@ async def verify_email(
     """Verify email with 6-digit code"""
     if not request.user_id:
         raise HTTPException(status_code=400, detail="User ID is required to verify your email")
-    if request.user_id <= 0:
-        raise HTTPException(status_code=400, detail="User ID must be a positive number")
+    
+    try:
+        user_uuid = UUID(request.user_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="User ID must be a valid UUID")
+    
     if not request.verification_code:
         raise HTTPException(status_code=400, detail="Verification code is required")
     
@@ -96,7 +101,7 @@ async def verify_email(
         raise HTTPException(status_code=400, detail="Verification code must be exactly 6 digits")
 
     success, result, status = await auth_service.verify_email(
-        db, request.user_id, code
+        db, user_uuid, code
     )
     
     if not success:

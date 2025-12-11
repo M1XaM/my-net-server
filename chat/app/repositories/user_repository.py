@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 import traceback
 
 from app.models.user import User
-from app.utils.encryption import hash_username
+from app.utils.encryption import hash_username, hash_email, hash_google_id
 from app.utils.security import generate_verification_code
 
 
@@ -65,8 +66,9 @@ async def mark_email_as_verified(db: AsyncSession, user: User) -> None:
 
 
 async def get_by_email(db: AsyncSession, email: str) -> User | None:
-    """Get user by email"""
-    result = await db.execute(select(User).where(User.email == email))
+    """Get user by hashed email (case-insensitive)"""
+    hashed = hash_email(email.lower())
+    result = await db.execute(select(User).where(User.email_hash == hashed))
     return result.scalar_one_or_none()
 
 
@@ -77,7 +79,7 @@ async def get_by_username(db: AsyncSession, username: str) -> User | None:
     return result.scalar_one_or_none()
 
 
-async def get_by_id(db: AsyncSession, user_id: int) -> User | None:
+async def get_by_id(db: AsyncSession, user_id: UUID) -> User | None:
     """Get user by ID"""
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
@@ -90,8 +92,9 @@ async def get_all_users(db: AsyncSession) -> list[User]:
 
 
 async def get_by_google_id(db: AsyncSession, google_id: str) -> User | None:
-    """Get user by Google ID"""
-    result = await db.execute(select(User).where(User.google_id == google_id))
+    """Get user by hashed Google ID"""
+    hashed = hash_google_id(google_id)
+    result = await db.execute(select(User).where(User.google_id_hash == hashed))
     return result.scalar_one_or_none()
 
 

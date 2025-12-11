@@ -1,5 +1,6 @@
 import traceback
 from datetime import datetime
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import user_repository
@@ -46,7 +47,7 @@ async def register_user(
     # Send verification email asynchronously
     await send_verification_email_async(email, result.get("verification_code"), username)
 
-    return True, {"user_id": result.get("user_id")}, 200
+    return True, {"user_id": str(result.get("user_id"))}, 200
 
 
 async def login_user(
@@ -85,7 +86,7 @@ async def login_user(
     csrf_token = generate_csrf_token()
 
     return True, {
-        'id': user.id,
+        'id': str(user.id),
         'username': user.username,
         'access_token': access_token,
         'csrf_token': csrf_token,
@@ -107,7 +108,13 @@ async def refresh_access_token(refresh_token: str) -> tuple[bool, dict, int]:
             return False, {'error': 'Invalid token type. Expected a refresh token'}, 401
 
         user_id = payload.get('user_id')
-        if not user_id or not isinstance(user_id, int):
+        if not user_id:
+            return False, {'error': 'Invalid token payload. Please log in again'}, 401
+        
+        # Validate it's a valid UUID string
+        try:
+            UUID(str(user_id))
+        except (ValueError, TypeError):
             return False, {'error': 'Invalid token payload. Please log in again'}, 401
         
         access_token = create_access_token(user_id)
@@ -127,7 +134,7 @@ async def refresh_access_token(refresh_token: str) -> tuple[bool, dict, int]:
         return False, {'error': 'Failed to refresh your session. Please log in again'}, 401
 
 
-def create_auth_tokens(user_id: int) -> dict:
+def create_auth_tokens(user_id: UUID) -> dict:
     """Create all authentication tokens for a user"""
     return {
         'access_token': create_access_token(user_id),
@@ -138,10 +145,11 @@ def create_auth_tokens(user_id: int) -> dict:
 
 async def verify_email(
     db: AsyncSession,
-    user_id: int,
+    user_id: UUID,
     verification_code: str
 ) -> tuple[bool, dict, int]:
-    """Verify user's email with verification code\"\"\"\n    user = await user_repository.get_by_id(db, user_id)
+    """Verify user's email with verification code"""
+    user = await user_repository.get_by_id(db, user_id)
 
     if not user:
         return False, {'error': 'No user found with the provided ID. The account may have been deleted'}, 404
@@ -168,7 +176,7 @@ async def verify_email(
     csrf_token = generate_csrf_token()
 
     return True, {
-        "id": user.id,
+        "id": str(user.id),
         "username": user.username,
         "email": user.email,
         "access_token": access_token,

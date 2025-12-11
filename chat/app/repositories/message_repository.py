@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +8,8 @@ from app.models.user import User
 
 async def get_conversation(
     db: AsyncSession,
-    user_id: int,
-    other_id: int
+    user_id: UUID,
+    other_id: UUID
 ) -> tuple[bool, list[Message] | dict, int]:
     """Get all messages between two users"""
     result = await db.execute(
@@ -26,8 +27,8 @@ async def get_conversation(
 
 async def save_message(
     db: AsyncSession,
-    sender_id: int,
-    receiver_id: int,
+    sender_id: UUID,
+    receiver_id: UUID,
     content: str
 ) -> tuple[bool, Message | dict, int]:
     """Save a new message"""

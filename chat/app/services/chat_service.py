@@ -1,11 +1,12 @@
 from typing import Dict, Any, Optional, Tuple
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import message_repository
 
 from app.utils.security import sanitize_message
 
-_online_users: Dict[int, Dict[str, Any]] = {}
+_online_users: Dict[str, Dict[str, Any]] = {}
 
 
 def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
@@ -13,12 +14,12 @@ def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[st
     Handle user connection - add user to online users list
     
     Args:
-        user_data: User data dictionary containing 'id' key
+        user_data: User data dictionary containing 'id' key (as string UUID)
         
     Returns:
         Tuple of (success, error_message, updated_users)
     """
-    user_id = user_data['id']
+    user_id = str(user_data['id'])
     _online_users[user_id] = user_data
     
     return True, None, get_online_users()
@@ -29,12 +30,12 @@ def handle_user_disconnection(user_data: Dict[str, Any]) -> Tuple[bool, Optional
     Handle user disconnection - remove user from online users list
     
     Args:
-        user_data: User data dictionary containing 'id' key
+        user_data: User data dictionary containing 'id' key (as string UUID)
         
     Returns:
         Tuple of (success, error_message, updated_users)
     """
-    user_id = user_data['id']
+    user_id = str(user_data['id'])
     _online_users.pop(user_id, None)
     
     return True, None, get_online_users()
@@ -53,34 +54,35 @@ def get_online_users() -> Dict[str, Any]:
     }
 
 
-def is_user_online(user_id: int) -> bool:
+def is_user_online(user_id: str) -> bool:
     """
     Check if a specific user is online
     
     Args:
-        user_id: User ID to check
+        user_id: User ID (string UUID) to check
         
     Returns:
         True if user is online, False otherwise
     """
-    return user_id in _online_users
+    return str(user_id) in _online_users
 
 
-def create_chat_room(user_id: int, other_id: int) -> str:
+def create_chat_room(user_id: str, other_id: str) -> str:
     """
     Create a consistent room identifier for two users
     
     Args:
-        user_id: First user ID
-        other_id: Second user ID
+        user_id: First user ID (string UUID)
+        other_id: Second user ID (string UUID)
         
     Returns:
         Room identifier string
     """
-    return f"{min(user_id, other_id)}_{max(user_id, other_id)}"
+    ids = sorted([str(user_id), str(other_id)])
+    return f"{ids[0]}_{ids[1]}"
 
 
-def validate_message_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[int], Optional[int], Optional[str]]:
+def validate_message_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[UUID], Optional[UUID], Optional[str]]:
     """
     Validate and sanitize message data
     
@@ -90,8 +92,8 @@ def validate_message_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Op
     Returns:
         Tuple of (is_valid, error_message, sender_id, receiver_id, content)
     """
-    sender_id = int(data.get('sender_id'))
-    receiver_id = int(data.get('receiver_id'))
+    sender_id = UUID(data.get('sender_id'))
+    receiver_id = UUID(data.get('receiver_id'))
     content = data.get('content', '').strip()
     
     # Sanitize content for XSS prevention (business logic)
@@ -102,8 +104,8 @@ def validate_message_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Op
 
 async def process_message(
     db: AsyncSession,
-    sender_id: int,
-    receiver_id: int,
+    sender_id: UUID,
+    receiver_id: UUID,
     content: str
 ) -> Dict[str, Any] | Tuple[bool, Dict, int]:
     """
@@ -126,9 +128,9 @@ async def process_message(
     
     message = result
     return {
-        'id': message.id,
-        'sender_id': message.sender_id,
-        'receiver_id': message.receiver_id,
+        'id': str(message.id),
+        'sender_id': str(message.sender_id),
+        'receiver_id': str(message.receiver_id),
         'content': message.content,
         'timestamp': message.timestamp.isoformat() if message.timestamp else None
     }
@@ -162,7 +164,7 @@ async def handle_send_message(
     return True, None, formatted_message, room_name
 
 
-def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[int], Optional[int]]:
+def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
     """
     Validate join room data from WebSocket messages
     Note: WebSocket messages bypass router validation, so basic checks are needed here
@@ -183,13 +185,13 @@ def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optio
         return False, 'Both user_id and other_id are required', None, None
     
     try:
-        user_id = int(user_id)
-        other_id = int(other_id)
+        # Validate they are valid UUIDs
+        UUID(str(user_id))
+        UUID(str(other_id))
+        user_id = str(user_id)
+        other_id = str(other_id)
     except (ValueError, TypeError):
-        return False, 'User IDs must be valid integers', None, None
-    
-    if user_id <= 0 or other_id <= 0:
-        return False, 'User IDs must be positive integers', None, None
+        return False, 'User IDs must be valid UUIDs', None, None
     
     if user_id == other_id:
         return False, 'Cannot join a chat room with yourself', None, None
@@ -197,22 +199,23 @@ def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optio
     return True, None, user_id, other_id
 
 
-def get_user_rooms(user_id: int) -> Dict[str, Any]:
+def get_user_rooms(user_id: str) -> Dict[str, Any]:
     """
     Get all rooms a user is potentially in
     """
     user_rooms = []
+    user_id_str = str(user_id)
     
     for online_user_id in _online_users.keys():
-        if online_user_id != user_id:
-            room_name = create_chat_room(user_id, online_user_id)
+        if online_user_id != user_id_str:
+            room_name = create_chat_room(user_id_str, online_user_id)
             user_rooms.append({
                 'room': room_name,
                 'other_user_id': online_user_id
             })
     
     return {
-        'user_id': user_id,
+        'user_id': user_id_str,
         'rooms': user_rooms,
         'room_count': len(user_rooms)
     }

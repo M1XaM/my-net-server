@@ -19,12 +19,7 @@ async def get_users(
     Returns:
         JSON array of users with id and username
     """
-    if not user_id or user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Valid authentication is required to fetch users"
-        )
-    
+    # user_id is already validated as UUID by the CurrentUserId dependency
     try:
         users = await user_service.get_all_users_formatted(db)
         return users

@@ -29,8 +29,29 @@ def decrypt(value: str) -> str:
     return get_fernet().decrypt(value.encode()).decode()
 
 
-def hash_username(value: str) -> str:
-    """Hash a username for lookup"""
+def hash_value(value: str) -> str:
+    """Hash any string value for lookup (deterministic)"""
     if value is None:
         return None
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def hash_username(value: str) -> str:
+    """Hash a username for lookup (case-sensitive)"""
+    if value is None:
+        return None
+    return hash_value(value)
+
+
+def hash_email(value: str) -> str:
+    """Hash an email for lookup (case-insensitive - lowercased before hashing)"""
+    if value is None:
+        return None
+    return hash_value(value.lower())
+
+
+def hash_google_id(value: str) -> str:
+    """Hash a Google ID for lookup"""
+    if value is None:
+        return None
+    return hash_value(value)

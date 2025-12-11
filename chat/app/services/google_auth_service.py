@@ -113,7 +113,7 @@ def create_auth_response(user) -> Dict[str, Any]:
     
     return {
         "user": {
-            "id": user.id,
+            "id": str(user.id),
             "username": user.username,
             "email": user.email,
             "google_id": user.google_id,

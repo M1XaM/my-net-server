@@ -20,12 +20,6 @@ async def setup_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Generate QR code for user to scan"""
-    if not user_id or user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Valid user ID is required to set up 2FA"
-        )
-    
     secret, qr_code, error = await setup_totp(db, user_id)
 
     if error:
@@ -47,12 +41,6 @@ async def enable_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Enable 2FA after user confirms it works"""
-    if not user_id or user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Valid user ID is required"
-        )
-    
     token = request.token.strip() if request.token else None
     
     if not token:
@@ -90,12 +78,6 @@ async def disable_2fa_route(
     db: AsyncSession = Depends(get_db)
 ):
     """Disable 2FA"""
-    if not user_id or user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Valid user ID is required"
-        )
-    
     token = request.token.strip() if request.token else None
     
     if not token:

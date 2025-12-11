@@ -1,5 +1,6 @@
 import httpx
 from typing import Dict, Any, List, Tuple
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import message_repository
@@ -7,8 +8,8 @@ from app.repositories import message_repository
 
 async def fetch_conversation_messages(
     db: AsyncSession,
-    user_id: int,
-    other_id: int
+    user_id: UUID,
+    other_id: UUID
 ) -> Tuple[bool, List[Dict[str, Any]] | Dict, int]:
     """
     Fetch conversation messages between two users
@@ -29,9 +30,9 @@ async def fetch_conversation_messages(
         
         return True, [
             {
-                'id': m.id,
-                'sender_id': m.sender_id,
-                'receiver_id': m.receiver_id,
+                'id': str(m.id),
+                'sender_id': str(m.sender_id),
+                'receiver_id': str(m.receiver_id),
                 'content': m.content,
                 'timestamp': m.timestamp.isoformat() if m.timestamp else None
             }

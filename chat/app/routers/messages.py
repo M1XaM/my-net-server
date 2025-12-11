@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -15,26 +16,12 @@ class RunCodeRequest(BaseModel):
 
 @router.get("/messages/{user_id}/{other_id}")
 async def get_messages(
-    user_id: int,
-    other_id: int,
+    user_id: UUID,
+    other_id: UUID,
     current_user_id: CurrentUserId,
     db: AsyncSession = Depends(get_db)
 ):
     """Get messages between two users"""
-    # Validate user_id
-    if user_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="User ID must be a positive integer"
-        )
-    
-    # Validate other_id
-    if other_id <= 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Other user ID must be a positive integer"
-        )
-    
     # Check if requesting user matches the authenticated user
     if user_id != current_user_id:
         raise HTTPException(

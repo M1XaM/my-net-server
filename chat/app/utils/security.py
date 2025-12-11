@@ -38,17 +38,17 @@ def generate_csrf_token() -> str:
 
 # ========== JWT ==========
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: str) -> str:
     """Create an access token for a user"""
     exp = datetime.datetime.now() + datetime.timedelta(minutes=60)
-    payload = {"user_id": user_id, "exp": exp}
+    payload = {"user_id": str(user_id), "exp": exp}
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm="HS256")
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: str) -> str:
     """Create a refresh token for a user"""
     exp = datetime.datetime.now() + datetime.timedelta(days=7)
-    payload = {"user_id": user_id, "exp": exp, "type": "refresh"}
+    payload = {"user_id": str(user_id), "exp": exp, "type": "refresh"}
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm="HS256")
 
 
