@@ -30,7 +30,8 @@ def create_app() -> FastAPI:
         title="MyNet Chat API",
         description="Chat application API with full async support",
         version="2.0.0",
-        lifespan=lifespan
+        lifespan=lifespan,
+        root_path="/api"
     )
     
     # Configure CORS
@@ -44,14 +45,14 @@ def create_app() -> FastAPI:
     )
     
     # Include routers
-    app.include_router(auth.router, prefix="/api")
-    app.include_router(users.router, prefix="/api")
-    app.include_router(messages.router, prefix="/api")
-    app.include_router(google_auth.router, prefix="/api")
-    app.include_router(two_factor.router, prefix="/api")
+    app.include_router(auth.router)
+    app.include_router(users.router)
+    app.include_router(messages.router)
+    app.include_router(google_auth.router)
+    app.include_router(two_factor.router)
     
     # Mount Socket.IO app for WebSocket support
-    app.mount("/api/socket.io", socket_app)
+    app.mount("/socket.io", socket_app)
     
     return app
 
