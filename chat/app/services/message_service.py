@@ -1,9 +1,11 @@
 import httpx
+import ssl
 from typing import Dict, Any, List, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import message_repository
+from app.utils.config import settings
 
 
 async def fetch_conversation_messages(
@@ -45,9 +47,16 @@ async def fetch_conversation_messages(
 async def execute_code_via_runner(code: str, timeout: int = 10) -> Tuple[bool, dict, int]:
     """Execute code via the runner service asynchronously"""
     try:
-        async with httpx.AsyncClient() as client:
+        # Configure SSL context if using HTTPS
+        http_client_kwargs = {}
+        if settings.RUNNER_URL.startswith("https://") and settings.RUNNER_CA_CERT:
+            ssl_context = ssl.create_default_context()
+            ssl_context.load_verify_locations(settings.RUNNER_CA_CERT)
+            http_client_kwargs["verify"] = ssl_context
+        
+        async with httpx.AsyncClient(**http_client_kwargs) as client:
             resp = await client.post(
-                'http://runner:8080/run-code',
+                f'{settings.RUNNER_URL}/run-code',
                 json={'code': code},
                 timeout=timeout
             )

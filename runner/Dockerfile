@@ -19,4 +19,6 @@ COPY --from=build /app /app
 
 EXPOSE 8080
 
-CMD ["/usr/local/bin/gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "src.server:app", "--bind", "0.0.0.0:8080", "--timeout", "120"]
+# Run with gunicorn/uvicorn
+# TLS is configured via environment variables TLS_ENABLED, TLS_CERT_FILE, TLS_KEY_FILE
+CMD ["sh", "-c", "if [ \"$TLS_ENABLED\" = \"true\" ]; then /usr/local/bin/gunicorn -w 1 -k uvicorn.workers.UvicornWorker src.server:app --bind 0.0.0.0:8080 --timeout 120 --certfile $TLS_CERT_FILE --keyfile $TLS_KEY_FILE; else /usr/local/bin/gunicorn -w 1 -k uvicorn.workers.UvicornWorker src.server:app --bind 0.0.0.0:8080 --timeout 120; fi"]

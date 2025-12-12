@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     # CORS
     CORS_ALLOWED_ORIGINS: str = os.getenv("CORS_ALLOWED_ORIGINS", "")
     
+    # TLS configuration
+    TLS_ENABLED: bool = os.getenv("TLS_ENABLED", "false").lower() == "true"
+    TLS_CERT_FILE: str = os.getenv("TLS_CERT_FILE", "")
+    TLS_KEY_FILE: str = os.getenv("TLS_KEY_FILE", "")
+    
+    # Runner service configuration
+    RUNNER_URL: str = os.getenv("RUNNER_URL", "http://runner:8080")
+    RUNNER_CA_CERT: str = os.getenv("RUNNER_CA_CERT", "")
+    
     @property
     def origins_list(self) -> list[str]:
         origins = [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]

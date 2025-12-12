@@ -30,5 +30,6 @@ USER appuser
 EXPOSE 5000
 
 # Run with uvicorn for full async support
+# TLS is configured via environment variables TLS_ENABLED, TLS_CERT_FILE, TLS_KEY_FILE
 # Workers can be increased since we're now fully async
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]
+CMD ["sh", "-c", "if [ \"$TLS_ENABLED\" = \"true\" ]; then uvicorn app.main:app --host 0.0.0.0 --port 5000 --workers 1 --ssl-keyfile $TLS_KEY_FILE --ssl-certfile $TLS_CERT_FILE; else uvicorn app.main:app --host 0.0.0.0 --port 5000 --workers 1; fi"]
