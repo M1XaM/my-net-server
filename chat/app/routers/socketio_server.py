@@ -50,6 +50,12 @@ async def join(sid, data):
 @sio.event
 async def send_message(sid, data):
     """Send a message"""
+    # Validate message length
+    content = data.get('content', '') if isinstance(data, dict) else ''
+    if len(content) > 5000:
+        await sio.emit('message_error', {'error': 'Message exceeds maximum length of 5000 characters'}, to=sid)
+        return
+    
     success, error, message, room = await chat_service.send_message(data)
     
     if not success:
