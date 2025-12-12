@@ -13,6 +13,9 @@ asyncpg>=0.29.0
 # Redis for session/state management
 redis>=5.0.0
 
+# Kafka for async messaging
+aiokafka>=0.10.0
+
 # Async HTTP client
 httpx>=0.26.0
 aiohttp>=3.9.0

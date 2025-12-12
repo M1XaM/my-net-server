@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from .static_check import ast_static_check
 from .container_pool import get_pool, shutdown_pool
+from .kafka_consumer import create_kafka_runner, get_kafka_runner
 
 # Configure logging
 logging.basicConfig(
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 STATIC_CHECK = os.environ.get("STATIC_CHECK", "false").lower() == "true"
 TIMEOUT = int(os.environ.get("TIMEOUT", "10"))
+KAFKA_ENABLED = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "") != ""
 
 # Dashboard WebSocket connections
 dashboard_connections: list[WebSocket] = []
@@ -61,7 +63,24 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize container pool: {e}")
         raise
     
+    # Initialize Kafka consumer if enabled
+    kafka_runner = None
+    if KAFKA_ENABLED:
+        try:
+            static_checker = ast_static_check if STATIC_CHECK else None
+            kafka_runner = create_kafka_runner(get_pool, static_checker, TIMEOUT)
+            await kafka_runner.start()
+            logger.info("Kafka code runner started successfully")
+        except Exception as e:
+            logger.warning(f"Failed to start Kafka consumer (HTTP endpoint still available): {e}")
+    else:
+        logger.info("Kafka not configured, using HTTP-only mode")
+    
     yield
+    
+    # Shutdown Kafka consumer
+    if kafka_runner:
+        await kafka_runner.stop()
     
     # Shutdown the container pool
     logger.info("Shutting down runner service...")

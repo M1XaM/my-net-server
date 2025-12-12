@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.utils.config import settings
 from app.utils.database import db_manager
+from app.utils.kafka_client import kafka_manager
 from app.routers import auth, users, messages, google_auth, two_factor
 from app.routers.socketio_server import socket_app
 
@@ -14,12 +15,21 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting FastAPI application...")
     await db_manager.initialize()
+    
+    # Initialize Kafka
+    try:
+        await kafka_manager.initialize()
+        print("✅ Kafka connection established")
+    except Exception as e:
+        print(f"⚠️ Kafka initialization failed (will use HTTP fallback): {e}")
+    
     print("✅ Application started successfully")
     
     yield
     
     # Shutdown
     print("🛑 Shutting down FastAPI application...")
+    await kafka_manager.shutdown()
     await db_manager.shutdown()
     print("✅ Application shut down successfully")
 

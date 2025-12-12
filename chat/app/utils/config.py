@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     RUNNER_URL: str = os.getenv("RUNNER_URL", "http://runner:8080")
     RUNNER_CA_CERT: str = os.getenv("RUNNER_CA_CERT", "")
     
+    # Kafka configuration
+    KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+    KAFKA_CODE_REQUEST_TOPIC: str = os.getenv("KAFKA_CODE_REQUEST_TOPIC", "code-execution-requests")
+    KAFKA_CODE_RESPONSE_TOPIC: str = os.getenv("KAFKA_CODE_RESPONSE_TOPIC", "code-execution-responses")
+    KAFKA_ENCRYPTION_KEY: str = os.getenv("KAFKA_ENCRYPTION_KEY", "kafka-message-encryption-key-32b")
+    
     @property
     def origins_list(self) -> list[str]:
         origins = [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]

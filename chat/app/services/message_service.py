@@ -1,11 +1,15 @@
 import httpx
 import ssl
+import logging
 from typing import Dict, Any, List, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories import message_repository
 from app.utils.config import settings
+from app.utils.kafka_client import kafka_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def fetch_conversation_messages(
@@ -44,8 +48,30 @@ async def fetch_conversation_messages(
         return False, {"error": f"An unexpected error occurred while fetching messages: {str(e)}"}, 500
 
 
-async def execute_code_via_runner(code: str, timeout: int = 10) -> Tuple[bool, dict, int]:
-    """Execute code via the runner service asynchronously"""
+async def execute_code_via_runner(code: str, timeout: int = 10, user_id: str = "anonymous") -> Tuple[bool, dict, int]:
+    """
+    Execute code via Kafka message queue to the runner service.
+    Falls back to HTTP if Kafka is unavailable.
+    """
+    # Try Kafka first
+    try:
+        if kafka_manager._initialized or settings.KAFKA_BOOTSTRAP_SERVERS:
+            result = await kafka_manager.execute_code(code, user_id=user_id, timeout=timeout)
+            
+            if "error" in result and "status_code" in result:
+                return False, {"error": result["error"]}, result["status_code"]
+            
+            return True, result, 200
+            
+    except Exception as e:
+        logger.warning(f"Kafka execution failed, falling back to HTTP: {e}")
+    
+    # Fallback to HTTP
+    return await _execute_code_via_http(code, timeout)
+
+
+async def _execute_code_via_http(code: str, timeout: int = 10) -> Tuple[bool, dict, int]:
+    """Execute code via HTTP to the runner service (fallback method)"""
     try:
         # Configure SSL context if using HTTPS
         http_client_kwargs = {}
