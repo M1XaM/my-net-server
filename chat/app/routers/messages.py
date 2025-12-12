@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from app.utils.database import get_db
 from app.utils.dependencies import CurrentUserId
+from app.services import chat_service as chat
 from app.services import message_service
 
 router = APIRouter(tags=["messages"])
@@ -18,20 +18,13 @@ class RunCodeRequest(BaseModel):
 async def get_messages(
     user_id: UUID,
     other_id: UUID,
-    current_user_id: CurrentUserId,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: CurrentUserId
 ):
     """Get messages between two users"""
-    # Check if requesting user matches the authenticated user
     if user_id != current_user_id:
-        raise HTTPException(
-            status_code=403, 
-            detail="You can only access your own conversations"
-        )
+        raise HTTPException(status_code=403, detail="You can only access your own conversations")
     
-    success, messages, status_code = await message_service.fetch_conversation_messages(
-        db, user_id, other_id
-    )
+    success, messages, status_code = await chat.get_conversation(user_id, other_id)
     
     if not success:
         raise HTTPException(status_code=status_code, detail=messages.get("error"))
