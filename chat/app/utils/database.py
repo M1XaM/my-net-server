@@ -203,10 +203,9 @@ class DatabaseManager:
                 return False
     
     async def monitor_db(self) -> None:
-        """Monitor DB health and perform failover"""
+        """Monitor DB health and perform failover when current DB dies"""
         print("🔍 DB Monitor task started")
         check_counter = 0
-        main_down_logged = False
         
         while self._running:
             await asyncio.sleep(1)  # Check every second
@@ -239,7 +238,6 @@ class DatabaseManager:
                             success = await self.switch_db(other_index)
                             if success:
                                 print(f"✅✅✅ SUCCESSFULLY SWITCHED TO {other_uri}")
-                                main_down_logged = False  # Reset for future failovers
                                 break
                             else:
                                 print(f"❌❌❌ FAILED TO SWITCH TO {other_uri}")
@@ -248,18 +246,6 @@ class DatabaseManager:
                             await asyncio.sleep(2)
                     else:
                         print(f"❌❌❌ All failover attempts failed!")
-                
-                # If on standby, check if main is back (silently, only log on status change)
-                elif self.current_db_index == 1:
-                    main_alive = await self.check_db_available(self.db_uris[0], timeout=2, silent=True)
-                    if main_alive:
-                        print("✅ Main DB back online — switching to MAIN.")
-                        await self.switch_db(0)
-                        main_down_logged = False
-                    elif not main_down_logged and check_counter % 30 == 0:
-                        # Only log main down status every 30 seconds
-                        print("ℹ️ Main DB still offline, staying on STANDBY")
-                        main_down_logged = True
                         
             except asyncio.CancelledError:
                 print("🛑 Monitor task cancelled")
