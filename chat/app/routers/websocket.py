@@ -181,7 +181,7 @@ async def handle_send_message(websocket: WebSocket, data: Dict[str, Any]) -> Non
 
 async def handle_user_connected(websocket: WebSocket, user_data: Dict[str, Any]) -> None:
     """Handle user connection event"""
-    success, error_msg, updated_users = chat_service.handle_user_connection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_connection(user_data)
     
     if not success:
         print(f"User connection error: {error_msg}")
@@ -196,7 +196,7 @@ async def handle_user_connected(websocket: WebSocket, user_data: Dict[str, Any])
 
 async def handle_user_disconnected(websocket: WebSocket, user_data: Dict[str, Any]) -> None:
     """Handle user disconnection event"""
-    success, error_msg, updated_users = chat_service.handle_user_disconnection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_disconnection(user_data)
     
     if not success:
         print(f"User disconnection error: {error_msg}")
@@ -235,7 +235,7 @@ async def handle_typing(websocket: WebSocket, data: Dict[str, Any]) -> None:
 
 async def handle_get_online_users(websocket: WebSocket) -> None:
     """Handle get online users request"""
-    online_users_data = chat_service.get_online_users()
+    online_users_data = await chat_service.get_online_users()
     await manager.send_personal(websocket, {
         'event': 'online_users_response',
         'data': online_users_data
@@ -255,7 +255,7 @@ async def handle_check_user_online(websocket: WebSocket, data: Dict[str, Any]) -
     
     try:
         user_id = int(user_id)
-        is_online = chat_service.is_user_online(user_id)
+        is_online = await chat_service.is_user_online(user_id)
         
         await manager.send_personal(websocket, {
             'event': 'user_online_status',

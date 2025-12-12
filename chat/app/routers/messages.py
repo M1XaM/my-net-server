@@ -29,12 +29,6 @@ async def get_messages(
             detail="You can only access your own conversations"
         )
     
-    if user_id == other_id:
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot retrieve conversation with yourself"
-        )
-    
     success, messages, status_code = await message_service.fetch_conversation_messages(
         db, user_id, other_id
     )

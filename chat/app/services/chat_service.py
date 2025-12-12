@@ -5,13 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories import message_repository
 
 from app.utils.security import sanitize_message
+from app.utils.redis_client import (
+    redis_manager,
+    get_online_users as redis_get_online_users,
+    is_user_online as redis_is_user_online,
+    clear_all_connections as redis_clear_all_connections
+)
 
-_online_users: Dict[str, Dict[str, Any]] = {}
 
-
-def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+async def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
     """
-    Handle user connection - add user to online users list
+    Handle user connection - add user to online users list (Redis)
     
     Args:
         user_data: User data dictionary containing 'id' key (as string UUID)
@@ -20,14 +24,14 @@ def handle_user_connection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[st
         Tuple of (success, error_message, updated_users)
     """
     user_id = str(user_data['id'])
-    _online_users[user_id] = user_data
+    await redis_manager.add_online_user(user_id, user_data)
     
-    return True, None, get_online_users()
+    return True, None, await redis_get_online_users()
 
 
-def handle_user_disconnection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+async def handle_user_disconnection(user_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
     """
-    Handle user disconnection - remove user from online users list
+    Handle user disconnection - remove user from online users list (Redis)
     
     Args:
         user_data: User data dictionary containing 'id' key (as string UUID)
@@ -36,27 +40,24 @@ def handle_user_disconnection(user_data: Dict[str, Any]) -> Tuple[bool, Optional
         Tuple of (success, error_message, updated_users)
     """
     user_id = str(user_data['id'])
-    _online_users.pop(user_id, None)
+    await redis_manager.remove_online_user(user_id)
     
-    return True, None, get_online_users()
+    return True, None, await redis_get_online_users()
 
 
-def get_online_users() -> Dict[str, Any]:
+async def get_online_users() -> Dict[str, Any]:
     """
-    Get all online users
+    Get all online users from Redis
     
     Returns:
         Dictionary with online users information
     """
-    return {
-        'count': len(_online_users),
-        'users': list(_online_users.values())
-    }
+    return await redis_get_online_users()
 
 
-def is_user_online(user_id: str) -> bool:
+async def is_user_online(user_id: str) -> bool:
     """
-    Check if a specific user is online
+    Check if a specific user is online (via Redis)
     
     Args:
         user_id: User ID (string UUID) to check
@@ -64,7 +65,7 @@ def is_user_online(user_id: str) -> bool:
     Returns:
         True if user is online, False otherwise
     """
-    return str(user_id) in _online_users
+    return await redis_is_user_online(str(user_id))
 
 
 def create_chat_room(user_id: str, other_id: str) -> str:
@@ -193,20 +194,18 @@ def validate_join_data(data: Dict[str, Any]) -> Tuple[bool, Optional[str], Optio
     except (ValueError, TypeError):
         return False, 'User IDs must be valid UUIDs', None, None
     
-    if user_id == other_id:
-        return False, 'Cannot join a chat room with yourself', None, None
-    
     return True, None, user_id, other_id
 
 
-def get_user_rooms(user_id: str) -> Dict[str, Any]:
+async def get_user_rooms(user_id: str) -> Dict[str, Any]:
     """
     Get all rooms a user is potentially in
     """
     user_rooms = []
     user_id_str = str(user_id)
     
-    for online_user_id in _online_users.keys():
+    online_users = await redis_manager.get_all_online_users()
+    for online_user_id in online_users.keys():
         if online_user_id != user_id_str:
             room_name = create_chat_room(user_id_str, online_user_id)
             user_rooms.append({
@@ -221,18 +220,12 @@ def get_user_rooms(user_id: str) -> Dict[str, Any]:
     }
 
 
-def broadcast_online_users() -> Dict[str, Any]:
+async def broadcast_online_users() -> Dict[str, Any]:
     """Get online users for broadcasting"""
-    return {'users': list(_online_users.values())}
+    users = await redis_manager.get_online_users_list()
+    return {'users': users}
 
 
-def clear_all_connections() -> Dict[str, Any]:
+async def clear_all_connections() -> Dict[str, Any]:
     """Clear all online users (for testing/reset purposes)"""
-    global _online_users
-    user_count = len(_online_users)
-    _online_users = {}
-    
-    return {
-        'message': f'Cleared {user_count} online users',
-        'previous_count': user_count
-    }
+    return await redis_clear_all_connections()

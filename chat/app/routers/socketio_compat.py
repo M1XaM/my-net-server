@@ -3,7 +3,7 @@ import json
 import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 
-from app.services import chat_service_new as chat_service
+from app.services import chat_service
 from app.utils.database import db_manager
 
 
@@ -177,7 +177,7 @@ async def handle_send_message(websocket: WebSocket, sid: str, data: Dict[str, An
 
 async def handle_user_connected(websocket: WebSocket, sid: str, user_data: Dict[str, Any]) -> None:
     """Handle user connection event"""
-    success, error_msg, updated_users = chat_service.handle_user_connection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_connection(user_data)
     
     if not success:
         print(f"User connection error: {error_msg}")
@@ -189,7 +189,7 @@ async def handle_user_connected(websocket: WebSocket, sid: str, user_data: Dict[
 
 async def handle_user_disconnected(websocket: WebSocket, sid: str, user_data: Dict[str, Any]) -> None:
     """Handle user disconnection event"""
-    success, error_msg, updated_users = chat_service.handle_user_disconnection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_disconnection(user_data)
     
     if not success:
         print(f"User disconnection error: {error_msg}")
@@ -218,7 +218,7 @@ async def handle_typing(websocket: WebSocket, sid: str, data: Dict[str, Any]) ->
 
 async def handle_get_online_users(websocket: WebSocket, sid: str) -> None:
     """Handle get online users request"""
-    online_users_data = chat_service.get_online_users()
+    online_users_data = await chat_service.get_online_users()
     await sio.emit('online_users_response', online_users_data, to=sid)
 
 
@@ -232,7 +232,7 @@ async def handle_check_user_online(websocket: WebSocket, sid: str, data: Dict[st
     
     try:
         user_id = int(user_id)
-        is_online = chat_service.is_user_online(user_id)
+        is_online = await chat_service.is_user_online(user_id)
         
         await sio.emit('user_online_status', {
             'user_id': user_id,

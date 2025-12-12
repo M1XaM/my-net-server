@@ -77,10 +77,12 @@ async def send_message(sid, data):
     sender_id = data.get('sender_id')
     receiver_id = data.get('receiver_id')
     
-    # Calculate room name
+    # Calculate room name (use string comparison for UUIDs)
     room_name = None
     if sender_id and receiver_id:
-        room_name = f"{min(int(sender_id), int(receiver_id))}_{max(int(sender_id), int(receiver_id))}"
+        # Sort UUIDs as strings to create consistent room name
+        ids = sorted([str(sender_id), str(receiver_id)])
+        room_name = f"{ids[0]}_{ids[1]}"
         # Enter the room
         await sio.enter_room(sid, room_name)
         rooms = sio.rooms(sid)
@@ -120,7 +122,7 @@ async def send_message(sid, data):
 @sio.event
 async def user_connected(sid, user_data):
     """Handle user connection event"""
-    success, error_msg, updated_users = chat_service.handle_user_connection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_connection(user_data)
     
     if not success:
         print(f"User connection error: {error_msg}")
@@ -133,7 +135,7 @@ async def user_connected(sid, user_data):
 @sio.event
 async def user_disconnected(sid, user_data):
     """Handle user disconnection event"""
-    success, error_msg, updated_users = chat_service.handle_user_disconnection(user_data)
+    success, error_msg, updated_users = await chat_service.handle_user_disconnection(user_data)
     
     if not success:
         print(f"User disconnection error: {error_msg}")
@@ -164,7 +166,7 @@ async def typing(sid, data):
 @sio.event
 async def get_online_users(sid):
     """Handle get online users request"""
-    online_users_data = chat_service.get_online_users()
+    online_users_data = await chat_service.get_online_users()
     await sio.emit('online_users_response', online_users_data, to=sid)
 
 
@@ -179,7 +181,7 @@ async def check_user_online(sid, data):
     
     try:
         user_id = int(user_id)
-        is_online = chat_service.is_user_online(user_id)
+        is_online = await chat_service.is_user_online(user_id)
         
         await sio.emit('user_online_status', {
             'user_id': user_id,
