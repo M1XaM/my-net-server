@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f0f23;
+            color: #ccc;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            color: #00d4ff;
+            font-size: 24px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+
+        .card h2 {
+            color: #00d4ff;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #0f0f23;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .workers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .worker-card {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .worker-card.available {
+            border-color: #44ff44;
+        }
+
+        .worker-card.busy {
+            border-color: #ffaa00;
+            background: #2a2a1e;
+        }
+
+        .worker-card.unhealthy {
+            border-color: #ff4444;
+            background: #2a1a1a;
+        }
+
+        .worker-name {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .worker-status {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .worker-status.available { color: #44ff44; }
+        .worker-status.busy { color: #ffaa00; }
+        .worker-status.unhealthy { color: #ff4444; }
+
+        .worker-time {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .executions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .executions-table th,
+        .executions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        .executions-table th {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .executions-table tr:hover {
+            background: #0f0f23;
+        }
+
+        .code-preview {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            color: #aaddff;
+        }
+
+        .code-preview:hover {
+            color: #00d4ff;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.running {
+            background: #ffaa00;
+            color: #000;
+        }
+
+        .status-badge.completed {
+            background: #44ff44;
+            color: #000;
+        }
+
+        .status-badge.error {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: auto;
+            border: 1px solid #333;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #00d4ff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .code-block {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: #aaddff;
+        }
+
+        .modal-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-info-item {
+            background: #0f0f23;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .modal-info-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .modal-info-value {
+            font-size: 14px;
+            color: #fff;
+            margin-top: 3px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Runner Dashboard</h1>
+        <div class="connection-status">
+            <div class="status-dot" id="connectionDot"></div>
+            <span id="connectionText">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>📊 Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalExecutions">0</div>
+                    <div class="stat-label">Total Executions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgExecTime">0ms</div>
+                    <div class="stat-label">Avg Exec Time</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgLines">0</div>
+                    <div class="stat-label">Avg Lines of Code</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="successRate">0%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🐳 Worker Pool</h2>
+            <div class="workers-grid" id="workersGrid">
+                <div class="empty-state">Loading workers...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📝 Recent Executions</h2>
+        <table class="executions-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User ID</th>
+                    <th>Worker</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Lines</th>
+                    <th>Code</th>
+                </tr>
+            </thead>
+            <tbody id="executionsBody">
+                <tr>
+                    <td colspan="7" class="empty-state">No executions yet</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Execution Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-info" id="modalInfo"></div>
+            <h4 style="color: #888; margin-bottom: 10px;">Code:</h4>
+            <pre class="code-block" id="modalCode"></pre>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let executions = [];
+        let stats = {
+            totalExecutions: 0,
+            totalExecTime: 0,
+            totalLines: 0,
+            successCount: 0
+        };
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/dashboard`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                document.getElementById('connectionDot').classList.add('connected');
+                document.getElementById('connectionText').textContent = 'Connected';
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('connectionDot').classList.remove('connected');
+                document.getElementById('connectionText').textContent = 'Disconnected';
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = () => {
+                ws.close();
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'pool_status':
+                    updateWorkers(data.workers);
+                    break;
+                case 'execution_start':
+                    addExecution(data);
+                    break;
+                case 'execution_end':
+                    updateExecution(data);
+                    break;
+                case 'stats':
+                    // Replace stats from server (on initial connect)
+                    stats.totalExecutions = data.totalExecutions || 0;
+                    stats.totalExecTime = data.totalExecTime || 0;
+                    stats.totalLines = data.totalLines || 0;
+                    stats.successCount = data.successCount || 0;
+                    updateStatsDisplay();
+                    break;
+                case 'history':
+                    // Load execution history from server
+                    loadHistory(data.executions);
+                    break;
+            }
+        }
+
+        function updateWorkers(workers) {
+            const grid = document.getElementById('workersGrid');
+            
+            if (!workers || workers.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No workers available</div>';
+                return;
+            }
+            
+            grid.innerHTML = workers.map(worker => {
+                const statusClass = !worker.healthy ? 'unhealthy' : 
+                                   worker.busy ? 'busy' : 'available';
+                const statusText = !worker.healthy ? 'Unhealthy' : 
+                                  worker.busy ? 'Busy' : 'Available';
+                const timeText = worker.busy && worker.exec_start ? 
+                    `${((Date.now() / 1000 - worker.exec_start)).toFixed(1)}s` : '';
+                
+                return `
+                    <div class="worker-card ${statusClass}">
+                        <div class="worker-name">${worker.name}</div>
+                        <div class="worker-status ${statusClass}">${statusText}</div>
+                        ${timeText ? `<div class="worker-time ${worker.busy ? 'pulse' : ''}">${timeText}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadHistory(historyData) {
+            // Load historical executions (already completed)
+            if (!historyData || historyData.length === 0) return;
+            
+            executions = historyData.map(h => ({
+                id: h.execution_id,
+                userId: h.user_id || 'anonymous',
+                worker: h.worker,
+                code: h.code,
+                lines: h.code ? h.code.split('\n').length : 0,
+                startTime: h.start_time * 1000, // Convert to ms
+                status: h.success ? 'completed' : 'error',
+                duration: h.duration_ms
+            }));
+            
+            renderExecutions();
+        }
+
+        function addExecution(data) {
+            const execution = {
+                id: data.execution_id,
+                userId: data.user_id || 'anonymous',
+                worker: data.worker,
+                code: data.code,
+                lines: data.code.split('\n').length,
+                startTime: Date.now(),
+                status: 'running',
+                duration: null
+            };
+            
+            executions.unshift(execution);
+            if (executions.length > 50) executions.pop();
+            
+            renderExecutions();
+        }
+
+        function updateExecution(data) {
+            const execution = executions.find(e => e.id === data.execution_id);
+            if (execution) {
+                execution.status = data.success ? 'completed' : 'error';
+                execution.duration = data.duration;
+                
+                // Update local stats for immediate feedback
+                stats.totalExecutions++;
+                stats.totalExecTime += data.duration;
+                stats.totalLines += execution.lines;
+                if (data.success) stats.successCount++;
+                
+                updateStatsDisplay();
+            }
+            renderExecutions();
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('totalExecutions').textContent = stats.totalExecutions;
+            document.getElementById('avgExecTime').textContent = 
+                stats.totalExecutions > 0 
+                    ? `${(stats.totalExecTime / stats.totalExecutions).toFixed(0)}ms` 
+                    : '0ms';
+            document.getElementById('avgLines').textContent = 
+                stats.totalExecutions > 0 
+                    ? (stats.totalLines / stats.totalExecutions).toFixed(1) 
+                    : '0';
+            document.getElementById('successRate').textContent = 
+                stats.totalExecutions > 0 
+                    ? `${((stats.successCount / stats.totalExecutions) * 100).toFixed(0)}%` 
+                    : '0%';
+        }
+
+        function renderExecutions() {
+            const tbody = document.getElementById('executionsBody');
+            
+            if (executions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No executions yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = executions.map(exec => `
+                <tr>
+                    <td>${new Date(exec.startTime).toLocaleTimeString()}</td>
+                    <td>${exec.userId}</td>
+                    <td>${exec.worker || '-'}</td>
+                    <td><span class="status-badge ${exec.status}">${exec.status}</span></td>
+                    <td>${exec.duration !== null ? `${exec.duration}ms` : '<span class="pulse">...</span>'}</td>
+                    <td>${exec.lines}</td>
+                    <td class="code-preview" onclick="showCode('${exec.id}')">${escapeHtml(exec.code.substring(0, 50))}${exec.code.length > 50 ? '...' : ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function showCode(execId) {
+            const execution = executions.find(e => e.id === execId);
+            if (!execution) return;
+            
+            document.getElementById('modalInfo').innerHTML = `
+                <div class="modal-info-item">
+                    <div class="modal-info-label">User ID</div>
+                    <div class="modal-info-value">${execution.userId}</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Worker</div>
+                    <div class="modal-info-value">${execution.worker || '-'}</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Status</div>
+                    <div class="modal-info-value">${execution.status}</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Duration</div>
+                    <div class="modal-info-value">${execution.duration !== null ? `${execution.duration}ms` : 'Running...'}</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Lines of Code</div>
+                    <div class="modal-info-value">${execution.lines}</div>
+                </div>
+                <div class="modal-info-item">
+                    <div class="modal-info-label">Start Time</div>
+                    <div class="modal-info-value">${new Date(execution.startTime).toLocaleString()}</div>
+                </div>
+            `;
+            document.getElementById('modalCode').textContent = execution.code;
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modalOverlay') closeModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Start connection
+        connect();
+        
+        // Update running execution times
+        setInterval(() => {
+            const runningExecs = executions.filter(e => e.status === 'running');
+            if (runningExecs.length > 0) {
+                renderExecutions();
+            }
+        }, 100);
+    </script>
+</body>
+</html>
