@@ -225,8 +225,25 @@ class ContainerPool:
             # Don't raise - this might fail if running outside Docker
     
     async def _build_worker_image(self) -> None:
-        """Build the worker Docker image."""
-        logger.info("Building worker image...")
+        """Build or pull the worker Docker image."""
+        
+        # Check if image should be pulled from registry (e.g., ECR) instead of built locally
+        if os.environ.get("WORKER_IMAGE_PULL", "false").lower() == "true":
+            logger.info(f"Pulling worker image from registry: {self.worker_image}")
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: self._client.images.pull(self.worker_image)
+                )
+                logger.info(f"Worker image '{self.worker_image}' pulled successfully")
+                return
+            except Exception as e:
+                logger.error(f"Failed to pull worker image: {e}")
+                raise
+        
+        # Otherwise, build locally (original behavior for development)
+        logger.info("Building worker image locally...")
         
         worker_dir = os.path.join(os.path.dirname(__file__), "..", "worker")
         worker_dir = os.path.abspath(worker_dir)
@@ -606,6 +623,7 @@ async def get_pool() -> ContainerPool:
         _pool = ContainerPool(
             pool_size=int(os.environ.get("POOL_SIZE", "5")),
             base_port=int(os.environ.get("POOL_BASE_PORT", "9000")),
+            worker_image=os.environ.get("WORKER_IMAGE", "runner-worker:latest"),
             container_memory_limit=os.environ.get("WORKER_MEMORY_LIMIT", "128m"),
             container_cpu_limit=float(os.environ.get("WORKER_CPU_LIMIT", "0.25")),
         )

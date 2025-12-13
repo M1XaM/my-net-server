@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     @property
     def origins_list(self) -> list[str]:
         origins = [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]
-        origins.append("https://localhost:5173")
+        origins.append("https://localhost:5173")  # for local development
         return origins
     
     def make_async_uri(self, host: str) -> str:

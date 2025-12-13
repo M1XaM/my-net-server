@@ -84,3 +84,6 @@ dmypy.json
 # Local secrets (optional, keep config in .env)
 *.secret
 secrets.json
+
+# package-lock.json
+package-lock.json
