@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ALLOWED_ORIGINS: str = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    CORS_ALLOWED_ORIGINS_LOCAL: str = os.getenv("CORS_ALLOWED_ORIGINS_LOCAL", "")
     
     # TLS configuration
     TLS_ENABLED: bool = os.getenv("TLS_ENABLED", "false").lower() == "true"
@@ -53,8 +54,14 @@ class Settings(BaseSettings):
     
     @property
     def origins_list(self) -> list[str]:
-        origins = [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()]
-        origins.append("https://localhost:5173")  # for local development
+        """Combine production and local CORS origins"""
+        origins = []
+        # Add production origins
+        if self.CORS_ALLOWED_ORIGINS:
+            origins.extend([o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(',') if o.strip()])
+        # Add local development origins
+        if self.CORS_ALLOWED_ORIGINS_LOCAL:
+            origins.extend([o.strip() for o in self.CORS_ALLOWED_ORIGINS_LOCAL.split(',') if o.strip()])
         return origins
     
     def make_async_uri(self, host: str) -> str:

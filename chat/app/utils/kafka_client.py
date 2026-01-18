@@ -21,9 +21,12 @@ from aiokafka.errors import KafkaConnectionError
 logger = logging.getLogger(__name__)
 
 # Kafka configuration
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "")  # Empty = disabled
 KAFKA_CODE_REQUEST_TOPIC = os.getenv("KAFKA_CODE_REQUEST_TOPIC", "code-execution-requests")
 KAFKA_CODE_RESPONSE_TOPIC = os.getenv("KAFKA_CODE_RESPONSE_TOPIC", "code-execution-responses")
+
+# Check if Kafka is enabled (non-empty bootstrap servers)
+KAFKA_ENABLED = bool(KAFKA_BOOTSTRAP_SERVERS and KAFKA_BOOTSTRAP_SERVERS.strip())
 
 # Separate encryption keys for each direction
 CHAT_KAFKA_ENCRYPTION_KEY = os.getenv("CHAT_KAFKA_ENCRYPTION_KEY", "chat-kafka-encryption-key-32b!")
@@ -83,6 +86,11 @@ class KafkaManager:
     async def initialize(self):
         """Initialize Kafka producer and start response consumer"""
         if self._initialized:
+            return
+        
+        # Skip if Kafka is disabled
+        if not KAFKA_ENABLED:
+            logger.info("Kafka is disabled (KAFKA_BOOTSTRAP_SERVERS is empty)")
             return
         
         try:
