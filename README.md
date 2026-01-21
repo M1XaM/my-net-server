@@ -4,27 +4,21 @@
 
 ## Overview
 
-Backend service for MyNet technical communication platform. Built with Flask and WebSockets, providing real-time messaging, code execution, and LaTeX rendering for technical collaboration.
+Backend service for MyNet technical communication platform. Built with FastAPI and WebSockets, providing real-time messaging, code execution, and LaTeX rendering for technical collaboration.
 
 ## 🚀 Quick Start
 
-Run the complete platform using the infrastructure repository:
-
-```bash
-git clone https://github.com/M1XaM/my-net-infra.git
-cd my-net-infra
-docker-compose up
-```
+Check [infrastructure repository](https://github.com/M1XaM/my-net-infra).
 
 ## 🏗️ Architecture
 
-- **Flask Application** - REST API and WebSocket handlers
+- **FastAPI Application** - async REST API and WebSocket handlers
 - **WebSocket Server** - Real-time messaging
 - **PostgreSQL** - Primary data storage
 
 ## 🛠️ Technology Stack
 
-- Flask
+- FastAPI
 - PostgreSQL
 - Docker
 
@@ -34,12 +28,6 @@ docker-compose up
 - **Email Verification** - Token-based email verification for new users
 - **Google OAuth** - Sign in with Google integration
 - **Real-time Messaging** - WebSocket-based chat functionality
-- **End-to-End Encryption** - Encrypted storage for sensitive data
-
-## 📖 Documentation
-
-- [Email Verification Setup](docs/EMAIL_VERIFICATION.md) - Configuration and usage guide
-
 
 ## 📋 Status
 

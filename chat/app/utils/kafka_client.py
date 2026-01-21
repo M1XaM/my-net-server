@@ -191,6 +191,10 @@ class KafkaManager:
         if not self._initialized:
             await self.initialize()
         
+        # If Kafka is disabled, raise an error so HTTP fallback can be used
+        if not KAFKA_ENABLED or self.producer is None:
+            raise RuntimeError("Kafka is not available")
+        
         request_id = str(uuid4())
         
         # Create request message
