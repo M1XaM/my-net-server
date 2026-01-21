@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     OAUTH_GOOGLE_CLIENT_ID: str = os.getenv("OAUTH_GOOGLE_CLIENT_ID", "default_client_id")
     OAUTH_GOOGLE_CLIENT_SECRET: str = os.getenv("OAUTH_GOOGLE_CLIENT_SECRET", "default_secret")
     
+    # App Domain (used for OAuth redirect URIs)
+    APP_DOMAIN: str = os.getenv("APP_DOMAIN", "https://localhost")
+    
+    @property
+    def oauth_redirect_uri(self) -> str:
+        """Get the OAuth redirect URI based on APP_DOMAIN"""
+        domain = self.APP_DOMAIN.rstrip('/')
+        return f"{domain}/auth/google"
+    
     # JWT
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "52")
     

@@ -21,7 +21,7 @@ def generate_google_oauth_redirect_uri() -> str:
 
     query_params = {
         "client_id": settings.OAUTH_GOOGLE_CLIENT_ID,
-        "redirect_uri": "https://localhost/auth/google",
+        "redirect_uri": settings.oauth_redirect_uri,
         "response_type": "code",
         "scope": " ".join([
             "openid",
@@ -54,8 +54,11 @@ async def exchange_code_for_token(
     code: str,
     client_id: str,
     client_secret: str,
-    redirect_uri: str = "https://localhost/auth/google"
+    redirect_uri: str = None
 ) -> Dict[str, Any]:
+    # Use config redirect_uri if not provided
+    if redirect_uri is None:
+        redirect_uri = settings.oauth_redirect_uri
     """Exchange authorization code for Google tokens"""
     google_token_url = "https://oauth2.googleapis.com/token"
     
