@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     KAFKA_CODE_RESPONSE_TOPIC: str = os.getenv("KAFKA_CODE_RESPONSE_TOPIC", "code-execution-responses")
     KAFKA_ENCRYPTION_KEY: str = os.getenv("KAFKA_ENCRYPTION_KEY", "kafka-message-encryption-key-32b")
     
+    # Database SSL mode (require, prefer, disable)
+    DB_SSL_MODE: str = os.getenv("DB_SSL_MODE", "require")
+    
     @property
     def origins_list(self) -> list[str]:
         """Combine production and local CORS origins"""
@@ -75,11 +78,15 @@ class Settings(BaseSettings):
     
     def make_async_uri(self, host: str) -> str:
         """Create async PostgreSQL URI for asyncpg"""
-        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}?ssl=require"
+        if self.DB_SSL_MODE == "disable":
+            return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}"
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}?ssl={self.DB_SSL_MODE}"
     
     def make_sync_uri(self, host: str) -> str:
         """Create sync PostgreSQL URI for checking availability"""
-        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}?sslmode=require"
+        if self.DB_SSL_MODE == "disable":
+            return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}"
+        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{host}/{self.DB_NAME}?sslmode={self.DB_SSL_MODE}"
     
     @property
     def MAIN_DB_URI(self) -> str:

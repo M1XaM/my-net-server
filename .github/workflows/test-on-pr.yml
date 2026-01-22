@@ -36,10 +36,12 @@ jobs:
 
     env:
       DB_HOST: localhost
+      DB_HOST_STANDBY: localhost
       DB_PORT: 5432
       DB_NAME: testdb
       DB_USER: testuser
       DB_PASSWORD: testpass
+      DB_SSL_MODE: disable
       DB_ENCRYPTION_KEY: ${{ secrets.DB_ENCRYPTION_KEY || 'test-encryption-key-32-chars!!' }}
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'test-jwt-secret-key-for-testing' }}
       REDIS_HOST: localhost
