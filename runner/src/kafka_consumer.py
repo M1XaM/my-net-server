@@ -220,8 +220,9 @@ class KafkaCodeRunner:
         if self.static_checker:
             static_issues = self.static_checker(code)
             if static_issues:
+                constructs_list = ', '.join(static_issues)
                 return {
-                    "error": "forbidden constructs found",
+                    "error": f"Forbidden constructs found: {constructs_list}",
                     "details": static_issues,
                     "status_code": 403
                 }

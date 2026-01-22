@@ -200,10 +200,11 @@ async def run_code_executor(request_data: CodeRequest):
     if STATIC_CHECK:
         static_issues = ast_static_check(code)
         if static_issues:
+            constructs_list = ', '.join(static_issues)
             return JSONResponse(
                 status_code=403,
                 content={
-                    'error': 'forbidden constructs found',
+                    'error': f'Forbidden constructs found: {constructs_list}',
                     'details': static_issues
                 }
             )
