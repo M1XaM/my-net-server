@@ -226,6 +226,11 @@ class ContainerPool:
     
     async def _build_worker_image(self) -> None:
         """Build or pull the worker Docker image."""
+
+        # Check if we should skip building/pulling (if image is pre-built/loaded)
+        if os.environ.get("WORKER_IMAGE_SKIP_BUILD", "false").lower() == "true":
+            logger.info("Skipping worker image build (WORKER_IMAGE_SKIP_BUILD=true)")
+            return
         
         # Check if image should be pulled from registry (e.g., ECR) instead of built locally
         if os.environ.get("WORKER_IMAGE_PULL", "false").lower() == "true":
@@ -324,7 +329,8 @@ class ContainerPool:
                     network=self.WORKER_NETWORK_NAME,  # Internal network only
                     mem_limit=self.container_memory_limit,
                     nano_cpus=int(self.container_cpu_limit * 1e9),
-                    read_only=False,  # Allow writing to /tmp
+                    read_only=True,  # Root filesystem is read-only
+                    tmpfs={'/tmp': 'rw,noexec,nosuid,size=64m'},  # Writable tmpfs
                     security_opt=["no-new-privileges:true"],
                     cap_drop=["ALL"],  # Drop all capabilities
                     pids_limit=50,  # Limit number of processes
